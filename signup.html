@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Venyo — Sign Up</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body { background:#f8fafb; }
+    .brand { font-weight:700; font-size:1.35rem; }
+    .brand span { color:#00bcd4; }
+    .card { border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg bg-white shadow-sm">
+    <div class="container">
+      <a class="navbar-brand brand" href="#">Ven<span>yo</span></a>
+    </div>
+  </nav>
+
+  <main class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-6">
+        <div class="card p-4">
+          <h3 class="mb-3 text-center">Create an account</h3>
+
+          <form id="signupForm" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Name</label>
+              <input id="name" type="text" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">WVSU Email</label>
+              <input id="email" type="email" class="form-control" placeholder="you@wvsu.edu.ph" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Organization (optional)</label>
+              <input id="organization" type="text" class="form-control">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Contact Number</label>
+              <input id="contact" type="tel" class="form-control" placeholder="+63..." required>
+            </div>
+
+            <div class="row g-2">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Password</label>
+                <input id="password" type="password" class="form-control" minlength="8" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Confirm Password</label>
+                <input id="confirmPassword" type="password" class="form-control" minlength="8" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Role</label>
+              <select id="role" class="form-select" required>
+                <option value="">-- Select role --</option>
+                <option value="STUDENT">Student</option>
+                <option value="FACULTY">Faculty</option>
+                <option value="ORG_REP">Org Representative</option>
+              </select>
+            </div>
+
+            <div class="d-grid">
+                <a href="login.html">SUBMIt
+            </a>
+            </div>
+            </div>
+
+            <div id="message" class="mt-3" style="display:none"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('signupForm');
+    const messageBox = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      messageBox.style.display = 'none';
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const organization = document.getElementById('organization').value.trim();
+      const contact = document.getElementById('contact').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const role = document.getElementById('role').value;
+
+      // Basic client-side validation
+      if (!name || !email || !contact || !password || !confirmPassword || !role) {
+        return showMessage('Please fill all required fields.', 'danger');
+      }
+      if (password !== confirmPassword) {
+        return showMessage('Passwords do not match.', 'danger');
+      }
+      if (password.length < 8) {
+        return showMessage('Password must be at least 8 characters.', 'danger');
+      }
+
+      const payload = { name, email, organization, contactNumber: contact, password, role };
+
+      try {
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showMessage(data.message || 'Signup failed', 'danger');
+        } else {
+          // Response contains { message, verificationRequired }
+          if (data.verificationRequired) {
+            showMessage('Sign-up successful! Please check your email to verify your account.', 'success');
+          } else {
+            showMessage('Sign-up successful! You can now log in.', 'success');
+          }
+          form.reset();
+        }
+      } catch (err) {
+        showMessage('Network or server error. Try again later.', 'danger');
+        console.error(err);
+      }
+    });
+
+    function showMessage(text, type = 'info') {
+      messageBox.style.display = 'block';
+      messageBox.className = `alert alert-${type}`;
+      messageBox.textContent = text;
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
