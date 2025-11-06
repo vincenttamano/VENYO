@@ -12,7 +12,4 @@ public class Admin extends User{
         this.adminPassword = adminPassword;
     }
 
-    public void addVenue() {}
-
-    public void deleteVenue() {}
 }
