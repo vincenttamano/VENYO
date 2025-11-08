@@ -18,28 +18,24 @@
 
     <dependencies>
 
-        <!-- ✅ MongoDB Java Driver -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
             <version>5.1.0</version>
         </dependency>
 
-        <!-- ✅ JSON Library (for parsing/creating JSON data) -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20231013</version>
         </dependency>
 
-        <!-- ✅ Logging (Optional, helps see MongoDB logs nicely) -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.12</version>
         </dependency>
 
-        <!-- ✅ JUnit (for testing) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -58,7 +54,7 @@
 
     <build>
         <plugins>
-            <!-- Compiler Plugin -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -69,7 +65,6 @@
                 </configuration>
             </plugin>
 
-            <!-- JUnit Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

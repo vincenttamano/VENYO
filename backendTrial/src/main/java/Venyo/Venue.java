@@ -1,5 +1,12 @@
 package Venyo;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
+
+import java.util.LinkedList;
+
 public class Venue {
     private String name;
     private String description;
@@ -8,59 +15,22 @@ public class Venue {
     private int capacity;
     private boolean availability;
     private String location;
-    private byte[] photo;
-
-
-    public Venue(String name, String description, boolean isFree, double price, int capacity, boolean availability, String location, byte[] photo) {
-        this.name = name;
-        this.description = description;
-        setFree(isFree) ;
-        this.price = price;
-        this.capacity = capacity;
-        this.availability = availability;
-        this.location = location;
-        this.photo = photo;
-    }
-
-    public String getName() {
-        return name;
-    }
+    public static LinkedList<Venue> venueList = new LinkedList<>();
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
     }
 
-    public boolean isFree() {
-        return isFree;
-    }
-
     public void setFree(boolean free) {
-        if (price == 0) {
-            isFree = free;
-        }
-        else  {
-            isFree = false;
-        }
-    }
-
-    public double getPrice() {
-        return price;
+        isFree = free;
     }
 
     public void setPrice(double price) {
         this.price = price;
-    }
-
-    public int getCapacity() {
-        return capacity;
     }
 
     public void setCapacity(int capacity) {
@@ -75,41 +45,131 @@ public class Venue {
         this.availability = availability;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
     public void setLocation(String location) {
         this.location = location;
     }
 
-    public byte[] getPhoto() {
-        return photo;
+    public static LinkedList<Venue> getVenueList() {
+        return venueList;
     }
 
-    public void setPhoto(byte[] photo) {
-        this.photo = photo;
+    public static void setVenueList(LinkedList<Venue> venueList) {
+        Venue.venueList = venueList;
     }
 
-    public void displayVenue() {
-        System.out.println("Venue");
-        System.out.println("Name: " + name);
-        System.out.println("Description: " + description);
-        System.out.println("Free: " + isFree);
-        System.out.println("Price: " + price);
-        System.out.println("Capacity: " + capacity);
-        System.out.println("Availability: " + availability);
-        System.out.println("Location: " + location);
-        System.out.println("Photo: " + photo);
+    // ✅ --- GETTERS ---
+    public String getName() {
+        return name;
+    }
+
+    public boolean isFree() {
+        return isFree;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public int getCapacity() {
+        return capacity;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public boolean isAvailable() {
+        return availability;
+    }
+
+    public Venue(String name, String description, boolean isFree, double price,
+                 int capacity, boolean availability, String location) {
+        this.name = name;
+        this.description = description;
+        this.isFree = isFree;
+        this.price = price;
+        this.capacity = capacity;
+        this.availability = availability;
+        this.location = location;
+    }
+
+    public static void loadVenue() {
+        venueList.clear();
+        MongoDatabase db = DatabaseConnection.getDatabase("venues");
+        MongoCollection<Document> collection = db.getCollection("venue");
+
+        try (MongoCursor<Document> cursor = collection.find().iterator()) {
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                double price = 0.0;
+                Object priceObj = doc.get("price");
+                if (priceObj instanceof Number) {
+                    price = ((Number) priceObj).doubleValue();
+                }
+
+                Venue venue = new Venue(
+                        doc.getString("name"),
+                        doc.getString("description"),
+                        doc.getBoolean("isFree", false),
+                        price,
+                        doc.getInteger("capacity", 0),
+                        doc.getBoolean("availability", true),
+                        doc.getString("location")
+                );
+                venueList.add(venue);
+            }
+        }
     }
 
 
+    public static void displayVenues() {
 
-    public void sortByType() {}
+        System.out.println("\n--- Available Venues ---");
+        boolean anyAvailable = false;
+        for (int i = 0; i < venueList.size(); i++) {
+            Venue v = venueList.get(i);
+            if (v.isAvailable()) {
+                System.out.println((i + 1) + ". " + v.name + " (" + v.location + ") - " +
+                        (v.isFree ? "Free" : "₱" + v.price));
+                anyAvailable = true;
+            }
 
-    public void sortByAvailability() {}
+        }
+        System.out.println("\n--- Booked Venues ---");
+        for (int i = 0; i < venueList.size(); i++) {
+            Venue v = venueList.get(i);
+            if (!v.isAvailable()) {
+                System.out.println((i + 1) + ". " + v.name + " (" + v.location + ") - " +
+                        (v.isFree ? "Free" : "₱" + v.price));
+                anyAvailable = false;
+            }
+        }
 
-    public void sortByCapacity() {}
 
-    public void searchVenue() {}
+        if (!anyAvailable) {
+            System.out.println("No venues available right now.");
+        }
+    }
+
+    public void setAvailable(boolean available) {
+        this.availability = available;
+
+        MongoDatabase db = DatabaseConnection.getDatabase("venues");
+        MongoCollection<Document> collection = db.getCollection("venue");
+        collection.updateOne(
+                new Document("name", this.name),
+                new Document("$set", new Document("availability", available))
+        );
+    }
+
+    public static Venue findByName(String name) {
+        for (Venue v : venueList) {
+            if (v.getName().equalsIgnoreCase(name)) return v;
+        }
+        return null;
+    }
 }
