@@ -5,16 +5,15 @@ import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
 public class Venue {
-    private static int counter = 1; // static counter for auto-increment
-    private int venueId;
+    private int venueId; // remove static counter
     private String name;
     private String description;
     private int capacity;
     private boolean availability;
     private String location;
 
-    public Venue(String name, String description, int capacity, boolean availability, String location) {
-        this.venueId = counter++;
+    public Venue(int venueId, String name, String description, int capacity, boolean availability, String location) {
+        this.venueId = venueId; // now passed in constructor
         this.name = name;
         this.description = description;
         this.capacity = capacity;
@@ -117,6 +116,7 @@ public class Venue {
         Document doc = collection.find(new Document("venueId", venueId)).first();
         if (doc != null) {
             return new Venue(
+                    doc.getInteger("venueId"),
                     doc.getString("name"),
                     doc.getString("description"),
                     doc.getInteger("capacity"),
@@ -127,4 +127,6 @@ public class Venue {
         System.out.println("Venue not found!");
         return null;
     }
+
+
 }

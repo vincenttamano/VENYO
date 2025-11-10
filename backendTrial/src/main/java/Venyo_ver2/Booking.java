@@ -4,12 +4,12 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
+import java.awt.event.ActionListener;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Scanner;
 
 public class Booking {
-    private static int counter = 1;
     private int bookingId;
     private Venue venue;
     private Date date;
@@ -20,8 +20,9 @@ public class Booking {
     private LinkedList<Amenity> amenities;
     private static LinkedList<Booking> bookings = new LinkedList<>();
 
-    public Booking(Venue venue, Date date, timeSlot timeSlot, String paymentStatus, String bookingStatus, String purpose) {
-        this.bookingId = counter++; // auto-increment ID
+
+    public Booking(int bookingId, Venue venue, Date date, timeSlot timeSlot, String paymentStatus, String bookingStatus, String purpose) {
+        this.bookingId = bookingId; // passed in
         this.venue = venue;
         this.date = date;
         this.timeSlot = timeSlot;
@@ -52,6 +53,8 @@ public class Booking {
 
     public LinkedList<Amenity> getAmenities() { return amenities; }
 
+
+
     public static void createBooking(Scanner input) {
         MongoDatabase database = MongoDb.getDatabase();
         MongoCollection<Document> collection = database.getCollection("bookings");
@@ -59,8 +62,8 @@ public class Booking {
         System.out.println("Creating Booking");
 
         Venue.displayAvailableVenues();
-        System.out.println("Select Venue ID:");
-        int venueId = input.nextInt();
+        System.out.print("Select Venue ID: ");
+        int venueId = Integer.parseInt(input.nextLine());
         Venue selectedVenue = Venue.getVenue(venueId);
         if (selectedVenue == null) {
             System.out.println("Invalid Venue ID. Booking cancelled.");
@@ -69,76 +72,65 @@ public class Booking {
         selectedVenue.setAvailability(false);
 
         collection.updateOne(
-                new Document("venueId", selectedVenue.getVenueId()), // filter
-                new Document("$set", new Document("availability", false)) // update
+                new Document("venueId", selectedVenue.getVenueId()),
+                new Document("$set", new Document("availability", false))
         );
 
         Amenity.displayAmenities();
         LinkedList<Amenity> selectedAmenities = new LinkedList<>();
-        boolean choice = true;
-        while (choice) {
-            System.out.println("Select Amenity ID:");
-            int amenityId = input.nextInt();
+        while (true) {
+            System.out.print("Select Amenity ID (0 to stop): ");
+            int amenityId = Integer.parseInt(input.nextLine());
+            if (amenityId == 0) break;
             Amenity amenity = Amenity.getAmenity(amenityId);
             if (amenity != null) {
                 selectedAmenities.add(amenity);
                 System.out.println("Added: " + amenity.getName());
             } else {
-                System.out.println("Amenity not found. Skipping.");
+                System.out.println("Amenity not found.");
             }
-
-            System.out.println("Enter Y to add another amenity, N to finish:");
-            char answer = input.next().toLowerCase().charAt(0);
-            input.nextLine();
-            if (answer == 'n') choice = false;
         }
 
-        System.out.println("Purpose:");
+        System.out.print("Purpose: ");
         String purpose = input.nextLine();
 
+        // Time slot
         timeSlot slot = null;
         while (slot == null) {
             System.out.println("Select Time Slot:");
             System.out.println("1. AM");
             System.out.println("2. PM");
-            int slotChoice = Integer.parseInt(input.nextLine());
-            if (slotChoice == 1) slot = timeSlot.AM;
-            else if (slotChoice == 2) slot = timeSlot.PM;
-            else System.out.println("Invalid choice. Please enter 1 for AM or 2 for PM.");
+            System.out.print("Choice: ");
+            String choice = input.nextLine();
+            if (choice.equals("1")) slot = timeSlot.AM;
+            else if (choice.equals("2")) slot = timeSlot.PM;
+            else System.out.println("Invalid input.");
         }
 
-        Date bookingDate = new Date();
-        String paymentStatus = "Pending";
-        String bookingStatus = "Booked";
+        int maxId = 0;
+        Document lastBooking = collection.find().sort(new Document("bookingId", -1)).first();
+        if (lastBooking != null) maxId = lastBooking.getInteger("bookingId");
 
-        Booking newBooking = new Booking(selectedVenue, bookingDate, slot, paymentStatus, bookingStatus, purpose);
+        Booking newBooking = new Booking(maxId + 1, selectedVenue, new Date(), slot, "Pending", "Booked", purpose);
         newBooking.getAmenities().addAll(selectedAmenities);
 
         LinkedList<String> amenityNames = new LinkedList<>();
-        for (Amenity a : selectedAmenities) {
-            amenityNames.add(a.getName());
-        }
+        for (Amenity a : selectedAmenities) amenityNames.add(a.getName());
 
         Document bookingDoc = new Document("bookingId", newBooking.getBookingId())
                 .append("venueName", selectedVenue.getName())
-                .append("date", bookingDate.toString())
+                .append("date", newBooking.getDate().toString())
                 .append("timeSlot", slot.toString())
-                .append("paymentStatus", paymentStatus)
-                .append("bookingStatus", bookingStatus)
+                .append("paymentStatus", newBooking.getPaymentStatus())
+                .append("bookingStatus", newBooking.getBookingStatus())
                 .append("purpose", purpose)
                 .append("amenities", amenityNames);
 
         collection.insertOne(bookingDoc);
 
-        bookings.add(newBooking);
-
-        System.out.println("Booking created successfully and saved to database!");
-        System.out.println("Booking ID: " + newBooking.getBookingId());
-        System.out.println("Venue: " + selectedVenue.getName());
-        System.out.print("Amenities: ");
-        selectedAmenities.forEach(a -> System.out.print(a.getName() + " "));
-        System.out.println("\nPurpose: " + purpose);
+        System.out.println("Booking created successfully! ID: " + newBooking.getBookingId());
     }
+
 
     public static void displayBookings() {
         MongoDatabase database = MongoDb.getDatabase();
@@ -170,4 +162,6 @@ public class Booking {
             }
         }
     }
+
+
 }
