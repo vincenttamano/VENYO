@@ -170,7 +170,6 @@ public class Booking {
         System.out.println("✅ All bookings saved/updated successfully.");
     }
 
-    // ✅ Auto-increment booking ID
     private static int getNextBookingID() {
         MongoDatabase db = DatabaseConnection.getDatabase("booking");
         MongoCollection<Document> counters = db.getCollection("bookings_counters");
@@ -185,7 +184,6 @@ public class Booking {
         return result.getInteger("seq", 1);
     }
 
-    // ✅ Load all bookings
     public static void loadBookings() {
         bookingList.clear();
         MongoDatabase db = DatabaseConnection.getDatabase("booking");
@@ -221,7 +219,6 @@ public class Booking {
         }
     }
 
-    // ✅ Cancel booking
     public static void cancelBooking(int bookingID) {
         for (Booking b : bookingList) {
             if (b.bookingID == bookingID) {
