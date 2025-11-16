@@ -1,7 +1,15 @@
-#iVenue
+# iVenue
 A simple and efficient venue booking system designed to manage venue availability, schedule bookings, and organize customer reservations. This project streamlines the process of viewing venue details, selecting time slots, and managing both paid and free venue bookings.
 
 ---
+## Notes
+-Branching: Before starting any new feature or fixing bugs, create a new branch from main. Example:
+```bash
+git checkout -b feature/booking-module
+```
+-Push your branch and create a pull request when your work is ready. This keeps the main branch stable.
+-Latest Version: Venyo_ver2 is the latest version of the code.
+-README Updates: Rewrite the README file if any changes are made to the project.
 
 ##  **Features**
 
@@ -28,12 +36,14 @@ A simple and efficient venue booking system designed to manage venue availabilit
 
 ### **1. Clone the Repository**
 
-Clone the repository from the **main branch**, inside the `Venyo_ver2` folder.
+Clone the repository
 
 ```bash
 https://github.com/vincenttamano/VENYO.git
 ```
-## 2. Install Necessary Drivers
+note: Venyo_ver2 is the latest code
+
+## 2. Install Necessary Tools
 - MongoDB Java Driver
 
 Maven Repository (sync driver):
@@ -60,10 +70,8 @@ https://www.oracle.com/java/technologies/downloads/
 Download:
 https://maven.apache.org/download.cgi
 
-
 ## 3.Install Dependencies
-- Create .xml file
-- Paste dependencies under properties
+- Add the following to your pom.xml under <dependencies>:
 ```bash
 <dependencies>
     <!-- MongoDB Java Driver -->
@@ -117,13 +125,12 @@ mongodb+srv://vincentjohntamano_db_user:CZAngelsBaby1234567891011121314151617181
 
 ## 2. Connect Java to MongoDb
 - Create new java class
-  paste this code to create as a connection to the database
 ```bash
 umport com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 
-public class MongoDb {
+public class 'Name of Your Class' {
     private static final String CONNECTION_STRING = "mongodb+srv://vincentjohntamano_db_user:CZAngelsBaby1234567891011121314151617181920@cluster1.e8ynseg.mongodb.net/";
     private static final String DATABASE_NAME = "iVenue";
     static MongoClient mongoClient;
@@ -137,17 +144,21 @@ public class MongoDb {
         return database;
     }
 }
-
  ```
 ## 3.Creating a New Class
--Imports to access the database from MongoDb 
+-Imports to access the collections in Java from MongoDb 
 ```bash
 import com.mongodb.client.MongoCollection; // Represents a collection in MongoDB, used to perform CRUD operations
 import com.mongodb.client.MongoDatabase;   // Represents the database itself, used to access collections
 import org.bson.Document;                  // Represents a BSON (JSON-like) document, used for storing and manipulating data
 ```
 
--Connecting
+- Accessing data from a specific collection
+```bash
+MongoDatabase database = MongoDb.getDatabase();    
+MongoCollection<Document> collection = database.getCollection("Use name of collection you want to access"); Collection are like tables inside a database
+```
+
 
   
 
