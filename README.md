@@ -1,5 +1,4 @@
-<img width="368" height="225" alt="image" src="https://github.com/user-attachments/assets/da0ffd51-a086-4580-9c60-20ddf1039fa9" /># **VENYO**
-
+#iVenue
 A simple and efficient venue booking system designed to manage venue availability, schedule bookings, and organize customer reservations. This project streamlines the process of viewing venue details, selecting time slots, and managing both paid and free venue bookings.
 
 ---
