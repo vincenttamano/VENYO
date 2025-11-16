@@ -3,13 +3,13 @@ A simple and efficient venue booking system designed to manage venue availabilit
 
 ---
 ## Notes
--Branching: Before starting any new feature or fixing bugs, create a new branch from main. Example:
+- Branching: Before starting any new feature or fixing bugs, create a new branch from main. Example:
 ```bash
 git checkout -b feature/booking-module
 ```
--Push your branch and create a pull request when your work is ready. This keeps the main branch stable.
--Latest Version: Venyo_ver2 is the latest version of the code.
--README Updates: Rewrite the README file if any changes are made to the project.
+- Push your branch and create a pull request when your work is ready. This keeps the main branch stable.
+- Latest Version: Venyo_ver2 is the latest version of the code.
+- README Updates: Rewrite the README file if any changes are made to the project.
 
 ##  **Features**
 
@@ -146,7 +146,7 @@ public class 'Name of Your Class' {
 }
  ```
 ## 3.Creating a New Class
--Imports to access the collections in Java from MongoDb 
+- Imports to access the collections in Java from MongoDb 
 ```bash
 import com.mongodb.client.MongoCollection; // Represents a collection in MongoDB, used to perform CRUD operations
 import com.mongodb.client.MongoDatabase;   // Represents the database itself, used to access collections
