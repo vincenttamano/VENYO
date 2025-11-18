@@ -15,7 +15,7 @@ public class Admin {
         this.amenityAdmin = new AmenityAdmin();
     }
 
-    public void showMenu() {
+    public void adminMenu() {
         int choice;
         do {
             System.out.println("\n===== ADMIN MANAGEMENT SYSTEM =====");

@@ -68,6 +68,6 @@ public class Main {
 
     public static void adminMenu(Scanner input) {
         Admin admin = new Admin(input);
-        admin.showMenu();
+        admin.adminMenu();
     }
 }
