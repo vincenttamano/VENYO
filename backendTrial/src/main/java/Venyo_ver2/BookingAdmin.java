@@ -29,11 +29,14 @@ public class BookingAdmin implements AdminManagement<Booking> {
             System.out.println("Invalid Venue ID. Booking cancelled.");
             return;
         }
+
+        // Mark venue as unavailable
         selectedVenue.setAvailability(false);
         MongoDb.getDatabase().getCollection("venues")
                 .updateOne(new Document("venueId", venueId),
                         new Document("$set", new Document("availability", false)));
 
+        // Select amenities
         Amenity.displayAmenities();
         LinkedList<Amenity> selectedAmenities = new LinkedList<>();
         while (true) {
@@ -55,7 +58,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
         // Time slot
         timeSlot slot = null;
         while (slot == null) {
-            System.out.println("Select Time Slot");
+            System.out.println("Select Time Slot:");
             System.out.println("1. AM");
             System.out.println("2. PM");
             System.out.print("Enter Choice: ");
@@ -65,13 +68,12 @@ public class BookingAdmin implements AdminManagement<Booking> {
             else System.out.println("Invalid input. Try again.");
         }
 
-        // --- Generate unique bookingId from MongoDB ---
-        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        // Generate Booking ID
         int maxId = 0;
         Document lastBooking = collection.find().sort(new Document("bookingId", -1)).first();
         if (lastBooking != null) maxId = lastBooking.getInteger("bookingId");
 
-        // Finalize booking
+        // Create booking
         Date bookingDate = new Date();
         String paymentStatus = "Pending";
         String bookingStatus = "Booked";
@@ -82,17 +84,23 @@ public class BookingAdmin implements AdminManagement<Booking> {
         LinkedList<String> amenityNames = new LinkedList<>();
         for (Amenity a : selectedAmenities) amenityNames.add(a.getName());
 
+        // Include price and FREE/PAID status
         Document doc = new Document("bookingId", newBooking.getBookingId())
                 .append("venueName", selectedVenue.getName())
+                .append("venueId", selectedVenue.getVenueId())
                 .append("date", bookingDate.toString())
                 .append("timeSlot", slot.toString())
                 .append("paymentStatus", paymentStatus)
                 .append("bookingStatus", bookingStatus)
                 .append("purpose", purpose)
-                .append("amenities", amenityNames);
+                .append("amenities", amenityNames)
+                .append("price", selectedVenue.getPrice())
+                .append("isFree", selectedVenue.isFree()); // <-- uses public isFree() method
 
         collection.insertOne(doc);
+
         System.out.println("Booking successfully created. Booking ID: " + newBooking.getBookingId());
+        System.out.println("Venue Price: " + selectedVenue.getPriceLabel());
     }
 
 
@@ -120,7 +128,6 @@ public class BookingAdmin implements AdminManagement<Booking> {
         System.out.println("Booking updated successfully.");
     }
 
-    // --- DELETE BOOKING (user input only) ---
     @Override
     public void delete(Scanner input) {
         System.out.println("----DELETE BOOKING-----");
@@ -151,6 +158,8 @@ public class BookingAdmin implements AdminManagement<Booking> {
             System.out.println("Time Slot: " + doc.getString("timeSlot"));
             System.out.println("Purpose: " + doc.getString("purpose"));
             System.out.println("Status: " + doc.getString("bookingStatus"));
+            System.out.println("Price: ₱" + doc.getDouble("price"));
+            System.out.println("Free?: " + ((doc.getBoolean("isFree")) ? "YES" : "NO"));
             System.out.print("Amenities: ");
             if (doc.containsKey("amenities")) {
                 for (Object a : doc.getList("amenities", Object.class)) System.out.print(a + " ");

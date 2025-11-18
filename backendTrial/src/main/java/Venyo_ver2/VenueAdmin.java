@@ -5,6 +5,7 @@ import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
 import java.util.Scanner;
+
 public class VenueAdmin implements AdminManagement<Venue> {
 
     private final MongoCollection<Document> collection;
@@ -16,7 +17,7 @@ public class VenueAdmin implements AdminManagement<Venue> {
 
     @Override
     public void create(Scanner input) {
-        System.out.println("\n----ADD NEW VENUE----");
+        System.out.println("\n---- ADD NEW VENUE ----");
 
         System.out.print("Enter Venue Name: ");
         String name = input.nextLine();
@@ -30,16 +31,19 @@ public class VenueAdmin implements AdminManagement<Venue> {
         System.out.print("Enter Location: ");
         String location = input.nextLine();
 
+        System.out.print("Enter Price (0 if free): ");
+        double price = Double.parseDouble(input.nextLine());
+
         boolean availability = true;
 
-        // --- Get max venueId from MongoDB ---
+        // Get max venueId from MongoDB
         int maxId = 0;
         Document lastVenue = collection.find().sort(new Document("venueId", -1)).first();
         if (lastVenue != null) {
             maxId = lastVenue.getInteger("venueId");
         }
 
-        Venue newVenue = new Venue(maxId + 1, name, description, capacity, availability, location);
+        Venue newVenue = new Venue(maxId + 1, name, description, capacity, availability, location, price);
 
         // Insert into DB
         Document doc = new Document("venueId", newVenue.getVenueId())
@@ -47,22 +51,22 @@ public class VenueAdmin implements AdminManagement<Venue> {
                 .append("description", newVenue.getDescription())
                 .append("capacity", newVenue.getCapacity())
                 .append("availability", newVenue.isAvailability())
-                .append("location", newVenue.getLocation());
+                .append("location", newVenue.getLocation())
+                .append("price", newVenue.getPrice());
 
         collection.insertOne(doc);
         System.out.println("Venue added successfully. Venue ID: " + newVenue.getVenueId());
     }
 
-    // --- UPDATE VENUE (user input only) ---
     @Override
     public void update(Scanner input) {
-        System.out.println("----UPDATE VENUE----");
+        System.out.println("---- UPDATE VENUE ----");
         System.out.print("Enter Venue ID to update: ");
         int id = Integer.parseInt(input.nextLine());
 
         Document doc = collection.find(new Document("venueId", id)).first();
         if (doc == null) {
-            System.out.println(" Venue not found!");
+            System.out.println("Venue not found!");
             return;
         }
 
@@ -84,56 +88,59 @@ public class VenueAdmin implements AdminManagement<Venue> {
         String location = input.nextLine();
         if (location.isEmpty()) location = doc.getString("location");
 
+        System.out.print("Enter new Price (" + doc.getDouble("price") + "): ");
+        String priceInput = input.nextLine();
+        double price = priceInput.isEmpty() ? doc.getDouble("price") : Double.parseDouble(priceInput);
+
         System.out.print("Is the venue available? (Y/N, leave blank to keep current): ");
         String availInput = input.nextLine().toLowerCase();
-        boolean availability = availInput.isEmpty()
-                ? doc.getBoolean("availability")
-                : availInput.charAt(0) == 'y';
+        boolean availability = availInput.isEmpty() ? doc.getBoolean("availability") : availInput.charAt(0) == 'y';
 
         // Update document
         Document updateFields = new Document()
                 .append("name", name)
                 .append("description", description)
                 .append("capacity", capacity)
+                .append("location", location)
                 .append("availability", availability)
-                .append("location", location);
+                .append("price", price);
 
-        collection.updateOne(
-                new Document("venueId", id),
-                new Document("$set", updateFields)
-        );
-
-        System.out.println(" Venue updated successfully!");
+        collection.updateOne(new Document("venueId", id), new Document("$set", updateFields));
+        System.out.println("Venue updated successfully!");
     }
 
-    // --- DELETE VENUE (user input only) ---
     @Override
     public void delete(Scanner input) {
-        System.out.println("----DELETE VENUE----");
+        System.out.println("---- DELETE VENUE ----");
         System.out.print("Enter Venue ID to delete: ");
         int id = Integer.parseInt(input.nextLine());
 
         Document doc = collection.find(new Document("venueId", id)).first();
         if (doc == null) {
-            System.out.println(" Venue not found!");
+            System.out.println("Venue not found!");
             return;
         }
 
         collection.deleteOne(new Document("venueId", id));
-        System.out.println(" Venue deleted successfully!");
+        System.out.println("Venue deleted successfully!");
     }
 
     @Override
     public void displayAll() {
-        System.out.println("----ALL VENUES----");
+        System.out.println("---- ALL VENUES ----");
         for (Document doc : collection.find()) {
             String availability = doc.getBoolean("availability") ? "Available" : "Booked";
+
+            double price = doc.getDouble("price");
+            String priceLabel = (price == 0) ? "FREE" : "₱" + price;
+
             System.out.println("ID: " + doc.getInteger("venueId"));
             System.out.println("Name: " + doc.getString("name"));
             System.out.println("Description: " + doc.getString("description"));
             System.out.println("Capacity: " + doc.getInteger("capacity"));
             System.out.println("Availability: " + availability);
             System.out.println("Location: " + doc.getString("location"));
+            System.out.println("Price: " + priceLabel);
             System.out.println("---------------------------");
         }
     }
