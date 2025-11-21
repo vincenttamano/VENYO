@@ -44,73 +44,68 @@ https://github.com/vincenttamano/VENYO.git
 note: Venyo_ver2 is the latest code
 
 ## 2. Install Necessary Tools
-- MongoDB Java Driver
-
-Maven Repository (sync driver):
-https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
-
-MongoDB Java Documentation:
-https://www.mongodb.com/docs/drivers/java/
-
 - MongoDB Compass
-
+  
 Download:
 https://www.mongodb.com/try/download/compass
 
-- Java (JDK 17+)
-
-OpenJDK download:
-https://jdk.java.net/17/
-
-Oracle JDK:
-https://www.oracle.com/java/technologies/downloads/
-
 - Maven
-
 Download:
 https://maven.apache.org/download.cgi
+
+- Eclipse
+Import the project: File → Import → Existing Maven Project.
+Right-click project → Maven → Update Project to download dependencies.
+Ensure MongoDB is running to connect via Java code.
+
+- Vs Code
+Install Extension Pack for Java (includes Maven support).
+Open cloned repo folder in VS Code.
+Maven dependencies are automatically downloaded, or run Maven: Update Project.
+Ensure MongoDB is running to connect via Java code.
 
 ## 3.Install Dependencies
 - Add the following to your pom.xml under <dependencies>:
 ```bash
-<dependencies>
-    <!-- MongoDB Java Driver -->
-    <dependency>
-        <groupId>org.mongodb</groupId>
-        <artifactId>mongodb-driver-sync</artifactId>
-        <version>5.1.0</version>
-    </dependency>
+  <dependencies>
 
-    <!-- JSON library: to handle JSON parsing and creation -->
-    <dependency>
-        <groupId>org.json</groupId>
-        <artifactId>json</artifactId>
-        <version>20231013</version>
-    </dependency>
+        <!-- MongoDB Driver (Java 21 compatible) -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+            <version>5.1.0</version>
+        </dependency>
 
-    <!-- SLF4J Simple: logging framework for simple console logging -->
-    <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>2.0.12</version>
-    </dependency>
+        <!-- JSON Support -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20231013</version>
+        </dependency>
 
-    <!-- JUnit Jupiter API: for writing unit tests -->
-    <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-api</artifactId>
-        <version>5.10.2</version>
-        <scope>test</scope>
-    </dependency>
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.12</version>
+        </dependency>
 
-    <!-- JUnit Jupiter Engine: runtime engine for executing tests -->
-    <dependency>
-        <groupId>org.junit.jupiter</groupId>
-        <artifactId>junit-jupiter-engine</artifactId>
-        <version>5.10.2</version>
-        <scope>test</scope>
-    </dependency>
-</dependencies>
+        <!-- JUnit Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
 ```
 ##  **Connecting MongoDb to Java**
 ## 1. Connect to Cluster through MongoDb Compass
@@ -126,7 +121,7 @@ mongodb+srv://vincentjohntamano_db_user:CZAngelsBaby1234567891011121314151617181
 ## 2. Connect Java to MongoDb
 - Create new java class
 ```bash
-umport com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 
