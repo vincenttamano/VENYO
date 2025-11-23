@@ -89,9 +89,11 @@ public class Venue {
         return this.isFree;
     }
 
+
     public String getPriceLabel() {
         return (price == 0) ? "FREE" : "₱" + price;
     }
+
 
     // -------- DISPLAY METHODS --------
 
@@ -172,7 +174,7 @@ public class Venue {
                     doc.getInteger("capacity"),
                     doc.getBoolean("availability"),
                     doc.getString("location"),
-                    doc.getDouble("price")   // <-- FIXED
+                    doc.getDouble("price")
             );
         }
 

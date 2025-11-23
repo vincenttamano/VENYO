@@ -52,8 +52,8 @@ public class VenueAdmin implements AdminManagement<Venue> {
                 .append("capacity", newVenue.getCapacity())
                 .append("availability", newVenue.isAvailability())
                 .append("location", newVenue.getLocation())
-                .append("price", newVenue.getPrice());
-
+                .append("price", newVenue.getPrice())
+                .append("isFree", newVenue.isFree());
         collection.insertOne(doc);
         System.out.println("Venue added successfully. Venue ID: " + newVenue.getVenueId());
     }
@@ -97,13 +97,18 @@ public class VenueAdmin implements AdminManagement<Venue> {
         boolean availability = availInput.isEmpty() ? doc.getBoolean("availability") : availInput.charAt(0) == 'y';
 
         // Update document
+        boolean isFree = (price == 0);
+
+        // Update document fields
         Document updateFields = new Document()
                 .append("name", name)
                 .append("description", description)
                 .append("capacity", capacity)
                 .append("location", location)
                 .append("availability", availability)
-                .append("price", price);
+                .append("price", price)
+                .append("isFree", isFree);
+
 
         collection.updateOne(new Document("venueId", id), new Document("$set", updateFields));
         System.out.println("Venue updated successfully!");

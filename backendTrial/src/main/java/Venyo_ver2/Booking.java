@@ -13,7 +13,6 @@ public class Booking {
     private int bookingId;
     private Venue venue;
     private Date date;
-    private timeSlot timeSlot; // made instance variable
     private String paymentStatus;
     private String bookingStatus;
     private String purpose;
@@ -21,12 +20,11 @@ public class Booking {
 
     private static LinkedList<Booking> bookings = new LinkedList<>();
 
-    public Booking(int bookingId, Venue venue, Date date, timeSlot timeSlot,
+    public Booking(int bookingId, Venue venue, Date date,
                    String paymentStatus, String bookingStatus, String purpose) {
         this.bookingId = bookingId;
         this.venue = venue;
         this.date = date;
-        this.timeSlot = timeSlot;
         this.paymentStatus = paymentStatus;
         this.bookingStatus = bookingStatus;
         this.purpose = purpose;
@@ -58,7 +56,6 @@ public class Booking {
     public void setDate(Date date) {
         this.date = date;
     }
-
 
     public String getPaymentStatus() {
         return paymentStatus;
@@ -139,24 +136,11 @@ public class Booking {
         System.out.print("Purpose: ");
         String purpose = input.nextLine();
 
-        timeSlot slot = null;
-        while (slot == null) {
-            System.out.println("Select Time Slot:");
-            System.out.println("1. AM");
-            System.out.println("2. PM");
-            System.out.print("Choice: ");
-            String choice = input.nextLine();
-            if (choice.equals("1")) slot = slot.AM;
-            else if (choice.equals("2")) slot = slot.PM;
-            else System.out.println("Invalid input.");
-        }
-
-
         int maxId = 0;
         Document lastBooking = collection.find().sort(new Document("bookingId", -1)).first();
         if (lastBooking != null) maxId = lastBooking.getInteger("bookingId");
 
-        Booking newBooking = new Booking(maxId + 1, selectedVenue, new Date(), slot, "Pending", "Booked", purpose);
+        Booking newBooking = new Booking(maxId + 1, selectedVenue, new Date(), "Pending", "Booked", purpose);
         newBooking.getAmenities().addAll(selectedAmenities);
 
         LinkedList<String> amenityNames = new LinkedList<>();
@@ -166,7 +150,6 @@ public class Booking {
                 .append("venueName", selectedVenue.getName())
                 .append("venueId", selectedVenue.getVenueId())
                 .append("date", newBooking.getDate().toString())
-                .append("timeSlot", slot.toString())
                 .append("paymentStatus", newBooking.getPaymentStatus())
                 .append("bookingStatus", newBooking.getBookingStatus())
                 .append("purpose", purpose)
@@ -207,7 +190,6 @@ public class Booking {
             }
 
             System.out.println("Date: " + doc.getString("date"));
-            System.out.println("Time Slot: " + doc.getString("timeSlot"));
             System.out.println("Payment Status: " + doc.getString("paymentStatus"));
             System.out.println("Booking Status: " + doc.getString("bookingStatus"));
             System.out.println("Purpose: " + doc.getString("purpose"));

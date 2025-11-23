@@ -1,11 +1,17 @@
 package Venyo_ver2;
 
+import com.mongodb.client.MongoDatabase;
+
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
         Scanner input = new Scanner(System.in);
         int choice;
+
+        System.out.println("Connecting to MongoDB...");
+        MongoDatabase db = MongoDb.getDatabase();
+        System.out.println("MongoDB connected successfully.\n");
 
         do {
             System.out.println("\n===== VENYO BOOKING SYSTEM =====");

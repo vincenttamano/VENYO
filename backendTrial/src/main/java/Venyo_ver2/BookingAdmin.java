@@ -55,19 +55,6 @@ public class BookingAdmin implements AdminManagement<Booking> {
         System.out.print("Enter Purpose: ");
         String purpose = input.nextLine();
 
-        // Time slot
-        timeSlot slot = null;
-        while (slot == null) {
-            System.out.println("Select Time Slot:");
-            System.out.println("1. AM");
-            System.out.println("2. PM");
-            System.out.print("Enter Choice: ");
-            String choice = input.nextLine();
-            if (choice.equals("1")) slot = timeSlot.AM;
-            else if (choice.equals("2")) slot = timeSlot.PM;
-            else System.out.println("Invalid input. Try again.");
-        }
-
         // Generate Booking ID
         int maxId = 0;
         Document lastBooking = collection.find().sort(new Document("bookingId", -1)).first();
@@ -78,7 +65,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
         String paymentStatus = "Pending";
         String bookingStatus = "Booked";
 
-        Booking newBooking = new Booking(maxId + 1, selectedVenue, bookingDate, slot, paymentStatus, bookingStatus, purpose);
+        Booking newBooking = new Booking(maxId + 1, selectedVenue, bookingDate, paymentStatus, bookingStatus, purpose);
         newBooking.getAmenities().addAll(selectedAmenities);
 
         LinkedList<String> amenityNames = new LinkedList<>();
@@ -89,7 +76,6 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 .append("venueName", selectedVenue.getName())
                 .append("venueId", selectedVenue.getVenueId())
                 .append("date", bookingDate.toString())
-                .append("timeSlot", slot.toString())
                 .append("paymentStatus", paymentStatus)
                 .append("bookingStatus", bookingStatus)
                 .append("purpose", purpose)
@@ -150,23 +136,22 @@ public class BookingAdmin implements AdminManagement<Booking> {
     }
 
     @Override
-    public void displayAll() {
-        System.out.println("----ALL BOOKINGS----");
-        for (Document doc : collection.find()) {
-            System.out.println("Booking ID: " + doc.getInteger("bookingId"));
-            System.out.println("Venue: " + doc.getString("venueName"));
-            System.out.println("Time Slot: " + doc.getString("timeSlot"));
-            System.out.println("Purpose: " + doc.getString("purpose"));
-            System.out.println("Status: " + doc.getString("bookingStatus"));
-            System.out.println("Price: ₱" + doc.getDouble("price"));
-            System.out.println("Free?: " + ((doc.getBoolean("isFree")) ? "YES" : "NO"));
-            System.out.print("Amenities: ");
-            if (doc.containsKey("amenities")) {
-                for (Object a : doc.getList("amenities", Object.class)) System.out.print(a + " ");
-            } else {
-                System.out.print("None");
+        public void displayAll() {
+            System.out.println("----ALL BOOKINGS----");
+            for (Document doc : collection.find()) {
+                System.out.println("Booking ID: " + doc.getInteger("bookingId"));
+                System.out.println("Venue: " + doc.getString("venueName"));
+                System.out.println("Purpose: " + doc.getString("purpose"));
+                System.out.println("Status: " + doc.getString("bookingStatus"));
+                System.out.println("Price: ₱" + doc.getDouble("price"));
+                System.out.println("Free?: " + ((doc.getBoolean("isFree")) ? "YES" : "NO"));
+                System.out.print("Amenities: ");
+                if (doc.containsKey("amenities")) {
+                    for (Object a : doc.getList("amenities", Object.class)) System.out.print(a + " ");
+                } else {
+                    System.out.print("None");
+                }
+                System.out.println("\n-----------------------------");
             }
-            System.out.println("\n-----------------------------");
         }
-    }
 }
