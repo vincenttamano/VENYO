@@ -6,11 +6,14 @@
       <list>
         <option value="$PROJECT_DIR$/backendTrial/pom.xml" />
         <option value="$PROJECT_DIR$/backendNew/pom.xml" />
+        <option value="$PROJECT_DIR$/iVenue/pom.xml" />
+        <option value="$PROJECT_DIR$/untitled/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">
       <set>
         <option value="$PROJECT_DIR$/backendNew/pom.xml" />
+        <option value="$PROJECT_DIR$/untitled/pom.xml" />
       </set>
     </option>
   </component>
