@@ -30,8 +30,6 @@ public class Booking {
         this.amenities = new LinkedList<>();
     }
 
-
-
     public int getBookingId() {
         return bookingId;
     }
