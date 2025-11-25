@@ -39,45 +39,6 @@ public class Main {
         } while (choice != 3);
     }
 
-    public static void userMenu(Scanner input) {
-        int choice;
-        do {
-            System.out.println("\n===== USER MENU =====");
-            System.out.println("1. Create Booking");
-            System.out.println("2. View Venues");
-            System.out.println("3. View Amenities");
-            System.out.println("4. View All Bookings");
-            System.out.println("5. Back");
-            System.out.print("Enter choice: ");
-            choice = Integer.parseInt(input.nextLine());
-
-            switch (choice) {
-                case 1:
-                    Booking.createBooking(input);
-                    break;
-                case 2:
-                    Venue.displayAllVenues();
-                    break;
-                case 3:
-                    Amenity.displayAmenities();
-                    break;
-                case 4:
-                    Booking.displayBookings();
-                    break;
-                case 5:
-                    System.out.println("Returning to main menu.");
-                    break;
-                default:
-                    System.out.println("Invalid option, please try again!");
-            }
-        } while (choice != 5);
-    }
-
-    // Admin menu entry point when lopgged in as admin
-    public static void adminMenu(Scanner input) {
-        Admin admin = new Admin(input);
-        admin.adminMenu();
-    }
 
     // registration helper that collects customer details and stores in MongoDB
     private static void registerCustomer(Scanner input) {
