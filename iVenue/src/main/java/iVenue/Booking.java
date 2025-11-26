@@ -94,7 +94,7 @@ public class Booking {
         Booking.bookings = bookings;
     }
 
-        // Display all bookings
+    // Display all bookings
     public static void displayBookings() {
         MongoDatabase database = MongoDb.getDatabase();
         MongoCollection<Document> collection = database.getCollection("bookings");
@@ -138,6 +138,141 @@ public class Booking {
             System.out.println("Purpose: " + doc.getString("purpose"));
             System.out.println("---------------------------");
         }
+    }
+
+    // Customer-facing booking operations moved from Customer class.
+    public static void createBooking(Customer customer) {
+        Scanner sc = new Scanner(System.in);
+        Venue.displayAvailableVenues();
+        System.out.print("Choose venue ID: ");
+        int vid = Integer.parseInt(sc.nextLine().trim());
+        Venue chosen = Venue.getVenue(vid);
+        if (chosen == null) { System.out.println("Invalid venue."); return; }
+
+        Amenity.displayAmenities();
+        java.util.List<Integer> amenityIds = new java.util.ArrayList<>();
+        while (true) {
+            System.out.print("Enter Amenity ID to add (0 to stop): ");
+            int aid = Integer.parseInt(sc.nextLine().trim());
+            if (aid == 0) break;
+            Amenity am = Amenity.getAmenity(aid);
+            if (am != null) {
+                amenityIds.add(aid);
+                System.out.println("Added: " + am.getName());
+            } else {
+                System.out.println("Amenity not found.");
+            }
+        }
+
+        System.out.print("Purpose: ");
+        String purpose = sc.nextLine().trim();
+
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        int maxId = 0;
+        Document last = collection.find().sort(new Document("bookingId", -1)).first();
+        if (last != null) maxId = last.getInteger("bookingId");
+
+        int userId = customer.getUserId();
+        Document userDoc = MongoDb.getDatabase().getCollection("users").find(new Document("userId", userId)).first();
+
+        Document bookedBy = new Document("userId", userId)
+            .append("username", customer.getUsername())
+            .append("firstName", userDoc != null ? userDoc.getString("firstName") : customer.getFirstName())
+            .append("lastName", userDoc != null ? userDoc.getString("lastName") : customer.getLastName())
+            .append("contactNumber", userDoc != null ? userDoc.getString("contactNumber") : customer.getContactNumber())
+            .append("email", userDoc != null ? userDoc.getString("email") : customer.getEmail());
+
+        Document doc = new Document("bookingId", maxId + 1)
+            .append("venueId", chosen.getVenueId())
+            .append("venueName", chosen.getName())
+            .append("userId", userId)
+            .append("bookedBy", bookedBy)
+            .append("date", new java.util.Date().toString())
+            .append("paymentStatus", "Pending")
+            .append("bookingStatus", "Pending")
+            .append("purpose", purpose)
+            .append("amenities", amenityIds)
+            .append("price", chosen.getPrice())
+            .append("isFree", chosen.isFree());
+
+        collection.insertOne(doc);
+
+        MongoDb.getDatabase().getCollection("venues").updateOne(new Document("venueId", chosen.getVenueId()), new Document("$set", new Document("availability", false)));
+
+        System.out.println("Booking created with ID: " + (maxId + 1));
+    }
+
+    public static void cancelBooking(Customer customer) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Booking ID to cancel: ");
+        int id = Integer.parseInt(sc.nextLine().trim());
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        Document doc = collection.find(new Document("bookingId", id).append("userId", customer.getUserId())).first();
+        if (doc == null) { System.out.println("Booking not found or not your booking."); return; }
+
+        collection.updateOne(new Document("bookingId", id), new Document("$set", new Document("bookingStatus", "cancelled")));
+        int venueId = doc.getInteger("venueId");
+        MongoDb.getDatabase().getCollection("venues").updateOne(new Document("venueId", venueId), new Document("$set", new Document("availability", true)));
+        System.out.println("Booking cancelled.");
+    }
+
+    public static void viewBookingDetails(Customer customer) {
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        boolean found = false;
+        for (Document doc : collection.find(new Document("userId", customer.getUserId()))) {
+            found = true;
+            System.out.println("Booking ID: " + doc.getInteger("bookingId"));
+            System.out.println("Venue: " + doc.getString("venueName"));
+            System.out.println("Purpose: " + doc.getString("purpose"));
+            System.out.println("Status: " + doc.getString("bookingStatus"));
+            System.out.println("Price: " + doc.getDouble("price"));
+            System.out.println("Amenities: " + doc.get("amenities"));
+            System.out.println("---------------------------");
+        }
+        if (!found) System.out.println("You have no bookings.");
+    }
+
+    public static void checkStatus(Customer customer) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Booking ID to check status: ");
+        int id = Integer.parseInt(sc.nextLine().trim());
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        Document doc = collection.find(new Document("bookingId", id).append("userId", customer.getUserId())).first();
+        if (doc == null) { System.out.println("Booking not found or not your booking."); return; }
+        System.out.println("Status: " + doc.getString("bookingStatus"));
+    }
+
+    public static void payBooking(Customer customer) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Booking ID to pay: ");
+        int id = Integer.parseInt(sc.nextLine().trim());
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        Document doc = collection.find(new Document("bookingId", id).append("userId", customer.getUserId())).first();
+        if (doc == null) { System.out.println("Booking not found or not your booking."); return; }
+        if ("booked".equalsIgnoreCase(doc.getString("bookingStatus"))) { System.out.println("Already booked/paid."); return; }
+
+        double total = 0;
+        Integer venueId = doc.getInteger("venueId");
+        if (venueId != null) {
+            Venue v = Venue.getVenue(venueId);
+            if (v != null) total += v.getPrice();
+        }
+        if (doc.containsKey("amenities")) {
+            for (Object aidObj : doc.getList("amenities", Object.class)) {
+                try {
+                    int aid = Integer.parseInt(aidObj.toString());
+                    Amenity a = Amenity.getAmenity(aid);
+                    if (a != null) total += a.getQuantity();
+                } catch (Exception e) { }
+            }
+        }
+
+        System.out.println("Total amount to pay: " + total);
+        System.out.print("Enter any input to simulate payment: ");
+        sc.nextLine();
+
+        collection.updateOne(new Document("bookingId", id), new Document("$set", new Document("paymentStatus", "Paid").append("bookingStatus", "Booked").append("total", total)));
+        System.out.println("Payment accepted. Booking confirmed.");
     }
 
 }

@@ -89,7 +89,6 @@ public class BookingAdmin implements AdminManagement<Booking> {
         System.out.println("Venue Price: " + selectedVenue.getPriceLabel());
     }
 
-
     // --- UPDATE BOOKING (user input only) ---
     @Override
     public void update(Scanner input) {
