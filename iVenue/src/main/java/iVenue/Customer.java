@@ -69,8 +69,9 @@ public class Customer extends User implements Payment {
             System.out.println("2. Cancel Booking");
             System.out.println("3. View My Bookings");
             System.out.println("4. Check Booking Status");
-            System.out.println("5. Pay Booking");
-            System.out.println("6. Back / Logout");
+            System.out.println("5. Update Profile");
+            System.out.println("6. Pay Booking");
+            System.out.println("7. Back / Logout");
             System.out.print("Choose: ");
             String c = sc.nextLine().trim();
             switch (c) {
@@ -78,8 +79,9 @@ public class Customer extends User implements Payment {
                 case "2": Booking.cancelBooking(this); break;
                 case "3": Booking.viewBookingDetails(this); break;
                 case "4": Booking.checkStatus(this); break;
-                case "5": Booking.payBooking(this); break;
-                case "6": return;
+                case "5": Customer.updateProfile(sc, this); break;
+                case "6": Booking.payBooking(this); break;
+                case "7": return;
                 default: System.out.println("Invalid choice.");
             }
         }
@@ -201,5 +203,92 @@ public class Customer extends User implements Payment {
             }
         }
         return total;
+    }
+
+    // Allow a customer (or an admin acting on a customer) to update profile fields.
+    // Fields left blank will be kept. Password change requires minimum length.
+    public static void updateProfile(Scanner input, Customer customer) {
+        System.out.println("--- Update Customer Profile ---");
+        System.out.println("Leave blank to keep current value.");
+
+        System.out.print("First Name [" + customer.getFirstName() + "]: ");
+        String v = input.nextLine().trim();
+        if (!v.isEmpty()) customer.setFirstName(v);
+
+        System.out.print("Last Name [" + customer.getLastName() + "]: ");
+        v = input.nextLine().trim();
+        if (!v.isEmpty()) customer.setLastName(v);
+
+        // contact number
+        while (true) {
+            System.out.print("Contact Number [" + customer.getContactNumber() + "]: ");
+            v = input.nextLine().trim();
+            if (v.isEmpty()) break;
+            if (!v.matches("\\d+")) {
+                System.out.println("Contact number must contain digits only.");
+                continue;
+            }
+            if (v.length() < 7) {
+                System.out.println("Contact number must be at least 7 digits.");
+                continue;
+            }
+            customer.setContactNumber(v);
+            break;
+        }
+
+        // email
+        while (true) {
+            System.out.print("Email [" + customer.getEmail() + "]: ");
+            v = input.nextLine().trim();
+            if (v.isEmpty()) break;
+            if (!v.contains("@") || !v.contains(".")) {
+                System.out.println("Invalid email format. Please enter a valid email.");
+                continue;
+            }
+            customer.setEmail(v);
+            break;
+        }
+
+        // username change (optional)
+        System.out.print("Username [" + customer.getUsername() + "]: ");
+        v = input.nextLine().trim();
+        if (!v.isEmpty()) {
+            // ensure uniqueness
+            org.bson.Document existing = MongoDb.getDatabase().getCollection("users").find(new org.bson.Document("username", v)).first();
+            if (existing != null && existing.getInteger("userId") != customer.getUserId()) {
+                System.out.println("Username already taken. Keeping existing username.");
+            } else {
+                customer.setUsername(v);
+            }
+        }
+
+        // password change
+        while (true) {
+            System.out.print("Password (leave blank to keep current): ");
+            String pass = input.nextLine().trim();
+            if (pass.isEmpty()) break;
+            if (pass.length() < 6) {
+                System.out.println("Password must be at least 6 characters long.");
+                continue;
+            }
+            customer.setPassword(pass);
+            break;
+        }
+
+        // persist changes to DB
+        org.bson.Document updates = new org.bson.Document();
+        updates.put("firstName", customer.getFirstName());
+        updates.put("lastName", customer.getLastName());
+        updates.put("contactNumber", customer.getContactNumber());
+        updates.put("email", customer.getEmail());
+        updates.put("username", customer.getUsername());
+        updates.put("password", customer.getPassword());
+
+        MongoDb.getDatabase().getCollection("users").updateOne(
+                new org.bson.Document("userId", customer.getUserId()),
+                new org.bson.Document("$set", updates)
+        );
+
+        System.out.println("Profile updated successfully.");
     }
 }

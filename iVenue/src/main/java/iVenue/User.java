@@ -61,21 +61,6 @@ public class User {
         }
     }
 
-    // Use UserStore to register a minimal user; for full customer registration
-    // prefer Main.registerCustomerInteractive which captures more fields.
-    public void registerUser() {
-        Scanner sc = new Scanner(System.in);
-        System.out.print("Choose a username: ");
-        String u = sc.nextLine().trim();
-        System.out.print("Choose a password: ");
-        String p = sc.nextLine().trim();
-        Customer c = UserStore.registerCustomer(u, p, "", "", "", "");
-        if (c != null)
-            System.out.println("User registered: " + u);
-        else
-            System.out.println("Registration failed: username may already exist.");
-    }
-
     public static void displayAllUsers() {
         System.out.println("----ALL USERS----");
         for (User u : UserStore.getAll()) {
@@ -97,6 +82,7 @@ public class User {
     }
 
     public static void deleteUser(int UserID) {
+        System.out.print("Enter User ID to delete: ");
         org.bson.Document doc = MongoDb.getDatabase().getCollection("users").find(new org.bson.Document("userId", UserID)).first();
         if (doc == null) {
             System.out.println("User not found.");
