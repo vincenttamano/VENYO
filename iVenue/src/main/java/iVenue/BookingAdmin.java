@@ -111,6 +111,17 @@ public class BookingAdmin implements AdminManagement<Booking> {
         );
 
         System.out.println("Booking updated successfully.");
+        if (newStatus != null && (newStatus.equalsIgnoreCase("finished") || newStatus.equalsIgnoreCase("completed") || newStatus.equalsIgnoreCase("done"))) {
+            // Extract username from bookedBy
+            String username = "N/A";
+            if (doc.containsKey("bookedBy")) {
+                Document bookedBy = (Document) doc.get("bookedBy");
+                username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
+            }
+            Booking snapshot = new Booking(id, null, null, doc.getString("paymentStatus"), newStatus, doc.getString("purpose"), username);
+            BookingHistory.addFinished(snapshot);
+            System.out.println("Booking recorded in finished history.");
+        }
     }
 
     @Override
@@ -127,11 +138,22 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
         String venueName = doc.getString("venueName");
         MongoDb.getDatabase().getCollection("venues")
-                .updateOne(new Document("name", venueName),
-                        new Document("$set", new Document("availability", true)));
+            .updateOne(new Document("name", venueName),
+                new Document("$set", new Document("availability", true)));
+
+        // Extract username from bookedBy
+        String username = "N/A";
+        if (doc.containsKey("bookedBy")) {
+            Document bookedBy = (Document) doc.get("bookedBy");
+            username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
+        }
+
+        // Add a snapshot of the deleted booking to history before removing from DB
+        Booking deletedSnapshot = new Booking(id, null, null, doc.getString("paymentStatus"), doc.getString("bookingStatus"), doc.getString("purpose"), username);
+        BookingHistory.addDeleted(deletedSnapshot);
 
         collection.deleteOne(new Document("bookingId", id));
-        System.out.println("Booking deleted successfully. Venue is now available.");
+        System.out.println("Booking deleted successfully. Venue is now available and booking recorded in deleted history.");
     }
 
     @Override
@@ -163,4 +185,169 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 System.out.println("\n-----------------------------");
             }
         }
+
+    /**
+     * Display booking history: finished and deleted bookings in queue format.
+     */
+    public void displayHistory(Scanner input) {
+        int choice;
+        do {
+            System.out.println("\n--- BOOKING HISTORY ---");
+            System.out.println("1. View Finished Bookings Queue");
+            System.out.println("2. View Deleted Bookings Queue");
+            System.out.println("3. Back");
+            System.out.print("Enter choice: ");
+            choice = Integer.parseInt(input.nextLine());
+
+            switch (choice) {
+                case 1:
+                    System.out.println("\n----FINISHED BOOKINGS----");
+                    java.util.List<Booking> finished = BookingHistory.listFinished();
+                    if (finished.isEmpty()) {
+                        System.out.println("No finished bookings in history.");
+                    } else {
+                        int index = 1;
+                        for (Booking b : finished) {
+                            Document full = MongoDb.getDatabase().getCollection("bookings").find(new Document("bookingId", b.getBookingId())).first();
+                            System.out.println("[" + index + "]");
+                            if (full != null) {
+                                System.out.println("Booking ID: " + full.getInteger("bookingId"));
+                                System.out.println("Venue: " + full.getString("venueName"));
+                                System.out.println("Purpose: " + full.getString("purpose"));
+                                System.out.println("Status: " + full.getString("bookingStatus"));
+                                System.out.println("Payment Status: " + full.getString("paymentStatus"));
+                                System.out.println("User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
+                                Object amenities = full.get("amenities");
+                                System.out.print("Amenities: ");
+                                if (amenities != null) System.out.println(amenities); else System.out.println("None");
+                                Double price = full.getDouble("price");
+                                if (price != null) System.out.println("Price: ₱" + price);
+                            } else {
+                                System.out.println("Booking ID: " + b.getBookingId());
+                                System.out.println("  Payment: " + (b.getPaymentStatus() == null ? "N/A" : b.getPaymentStatus()));
+                                System.out.println("  Status: " + (b.getBookingStatus() == null ? "N/A" : b.getBookingStatus()));
+                                System.out.println("  Purpose: " + (b.getPurpose() == null ? "N/A" : b.getPurpose()));
+                                System.out.println("  User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
+                            }
+                            System.out.println("-----------------------------");
+                            index++;
+                        }
+                    }
+                    System.out.println("Total finished: " + BookingHistory.finishedCount());
+
+                    // Allow admin to remove entries from finished history (submenu)
+                    int subChoice;
+                    do {
+                        System.out.println("\n--- Finished History Options ---");
+                        System.out.println("1. Delete one entry");
+                        System.out.println("2. Delete all entries");
+                        System.out.println("3. Back");
+                        System.out.print("Enter choice: ");
+                        subChoice = Integer.parseInt(input.nextLine());
+                        switch (subChoice) {
+                            case 1:
+                                System.out.print("Enter Booking ID to remove from finished history: ");
+                                int remId = Integer.parseInt(input.nextLine());
+                                if (BookingHistory.removeFinishedById(remId)) {
+                                    System.out.println("Removed booking " + remId + " from finished history.");
+                                } else {
+                                    System.out.println("Booking ID not found in finished history.");
+                                }
+                                break;
+                            case 2:
+                                System.out.print("Are you sure you want to delete ALL finished history? (y/n): ");
+                                String conf = input.nextLine();
+                                if (conf.equalsIgnoreCase("y")) {
+                                    BookingHistory.clearFinished();
+                                    System.out.println("Finished history cleared.");
+                                } else {
+                                    System.out.println("Cancelled.");
+                                }
+                                break;
+                            case 3:
+                                break;
+                            default:
+                                System.out.println("Invalid option, please try again!");
+                        }
+                    } while (subChoice != 3);
+                    break;
+                case 2:
+                    System.out.println("\n----DELETED BOOKINGS----");
+                    java.util.List<Booking> deleted = BookingHistory.listDeleted();
+                    if (deleted.isEmpty()) {
+                        System.out.println("No deleted bookings in history.");
+                    } else {
+                        int index = 1;
+                        for (Booking b : deleted) {
+                            Document full = MongoDb.getDatabase().getCollection("bookings").find(new Document("bookingId", b.getBookingId())).first();
+                            System.out.println("[" + index + "]");
+                            if (full != null) {
+                                System.out.println("Booking ID: " + full.getInteger("bookingId"));
+                                System.out.println("Venue: " + full.getString("venueName"));
+                                System.out.println("Purpose: " + full.getString("purpose"));
+                                System.out.println("Status: " + full.getString("bookingStatus"));
+                                System.out.println("Payment Status: " + full.getString("paymentStatus"));
+                                System.out.println("User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
+                                Object amenities = full.get("amenities");
+                                System.out.print("Amenities: ");
+                                if (amenities != null) System.out.println(amenities); else System.out.println("None");
+                                Double price = full.getDouble("price");
+                                if (price != null) System.out.println("Price: ₱" + price);
+                            } else {
+                                System.out.println("Booking ID: " + b.getBookingId());
+                                System.out.println("  Payment: " + (b.getPaymentStatus() == null ? "N/A" : b.getPaymentStatus()));
+                                System.out.println("  Status: " + (b.getBookingStatus() == null ? "N/A" : b.getBookingStatus()));
+                                System.out.println("  Purpose: " + (b.getPurpose() == null ? "N/A" : b.getPurpose()));
+                                System.out.println("  User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
+                            }
+                            System.out.println("-----------------------------");
+                            index++;
+                        }
+                    }
+                    System.out.println("Total deleted: " + BookingHistory.deletedCount());
+
+                    // Allow admin to remove entries from deleted history (submenu)
+                    int subChoice2;
+                    do {
+                        System.out.println("\n--- Deleted History Options ---");
+                        System.out.println("1. Delete one entry");
+                        System.out.println("2. Delete all entries");
+                        System.out.println("3. Back");
+                        System.out.print("Enter choice: ");
+                        subChoice2 = Integer.parseInt(input.nextLine());
+                        switch (subChoice2) {
+                            case 1:
+                                System.out.print("Enter Booking ID to remove from deleted history: ");
+                                int remId2 = Integer.parseInt(input.nextLine());
+                                if (BookingHistory.removeDeletedById(remId2)) {
+                                    System.out.println("Removed booking " + remId2 + " from deleted history.");
+                                } else {
+                                    System.out.println("Booking ID not found in deleted history.");
+                                }
+                                break;
+                            case 2:
+                                System.out.print("Are you sure you want to delete ALL deleted history? (y/n): ");
+                                String conf2 = input.nextLine();
+                                if (conf2.equalsIgnoreCase("y")) {
+                                    BookingHistory.clearDeleted();
+                                    System.out.println("Deleted history cleared.");
+                                } else {
+                                    System.out.println("Cancelled.");
+                                }
+                                break;
+                            case 3:
+                                break;
+                            default:
+                                System.out.println("Invalid option, please try again!");
+                        }
+                    } while (subChoice2 != 3);
+                    break;
+                case 3:
+                    System.out.println("Returning to Booking Management.");
+                    break;
+                default:
+                    System.out.println("Invalid option, please try again!");
+            }
+        } while (choice != 3);
+    }
 }

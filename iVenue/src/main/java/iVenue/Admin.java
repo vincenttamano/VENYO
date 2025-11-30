@@ -85,7 +85,8 @@ public class Admin {
             System.out.println("2. Update Booking");
             System.out.println("3. Delete Booking");
             System.out.println("4. Display All Bookings");
-            System.out.println("5. Back");
+            System.out.println("5. View Booking History");
+            System.out.println("6. Back");
             System.out.print("Enter choice: ");
             choice = Integer.parseInt(input.nextLine());
 
@@ -103,12 +104,15 @@ public class Admin {
                     bookingAdmin.displayAll();
                     break;
                 case 5:
+                    bookingAdmin.displayHistory(input);
+                    break;
+                case 6:
                     System.out.println("Returning to Admin Menu.");
                     break;
                 default:
                     System.out.println("Invalid option, please try again!");
             }
-        } while (choice != 5);
+        } while (choice != 6);
     }
 
     private void manageVenues() {

@@ -16,6 +16,7 @@ public class Booking {
     private String bookingStatus;
     private String purpose;
     private LinkedList<Amenity> amenities;
+    private String username;
 
     private static LinkedList<Booking> bookings = new LinkedList<>();
 
@@ -28,6 +29,19 @@ public class Booking {
         this.bookingStatus = bookingStatus;
         this.purpose = purpose;
         this.amenities = new LinkedList<>();
+        this.username = null;
+    }
+
+    public Booking(int bookingId, Venue venue, Date date,
+                   String paymentStatus, String bookingStatus, String purpose, String username) {
+        this.bookingId = bookingId;
+        this.venue = venue;
+        this.date = date;
+        this.paymentStatus = paymentStatus;
+        this.bookingStatus = bookingStatus;
+        this.purpose = purpose;
+        this.amenities = new LinkedList<>();
+        this.username = username;
     }
 
     public int getBookingId() {
@@ -84,6 +98,14 @@ public class Booking {
 
     public void setAmenities(LinkedList<Amenity> amenities) {
         this.amenities = amenities;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public static LinkedList<Booking> getBookings() {
@@ -213,7 +235,14 @@ public class Booking {
         collection.updateOne(new Document("bookingId", id), new Document("$set", new Document("bookingStatus", "cancelled")));
         int venueId = doc.getInteger("venueId");
         MongoDb.getDatabase().getCollection("venues").updateOne(new Document("venueId", venueId), new Document("$set", new Document("availability", true)));
-        System.out.println("Booking cancelled.");
+        String username = "N/A";
+        if (doc.containsKey("bookedBy")) {
+            Document bookedBy = (Document) doc.get("bookedBy");
+            username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
+        }
+        Booking deletedSnapshot = new Booking(id, null, null, doc.getString("paymentStatus"), "cancelled", doc.getString("purpose"), username);
+        BookingHistory.addDeleted(deletedSnapshot);
+        System.out.println("Booking cancelled and recorded in deleted history.");
     }
 
     public static void viewBookingDetails(Customer customer) {
@@ -272,7 +301,12 @@ public class Booking {
         sc.nextLine();
 
         collection.updateOne(new Document("bookingId", id), new Document("$set", new Document("paymentStatus", "Paid").append("bookingStatus", "Booked").append("total", total)));
-        System.out.println("Payment accepted. Booking confirmed.");
+        
+        // Capture customer username for history
+        String username = customer.getUsername();
+        Booking finishedSnapshot = new Booking(id, null, null, "Paid", "Booked", doc.getString("purpose"), username);
+        BookingHistory.addFinished(finishedSnapshot);
+        System.out.println("Payment accepted. Booking confirmed and recorded in finished history.");
     }
 
 }
