@@ -185,6 +185,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 System.out.println("\n-----------------------------");
             }
         }
+<<<<<<< HEAD
 
     /**
      * Display booking history: finished and deleted bookings in queue format.
@@ -351,3 +352,6 @@ public class BookingAdmin implements AdminManagement<Booking> {
         } while (choice != 3);
     }
 }
+=======
+}
+>>>>>>> 474b7a1c131821f4362aa10e586b424261d601ac

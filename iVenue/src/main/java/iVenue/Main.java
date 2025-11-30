@@ -29,6 +29,7 @@ public class Main {
                     break;
                 case 2:
                     Customer.registerCustomer(input);
+                    break;
                 case 3:
                     System.out.println("Exiting system.");
                     break;

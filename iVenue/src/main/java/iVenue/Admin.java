@@ -1,11 +1,13 @@
 package iVenue;
 
 import java.util.Scanner;
+import org.bson.Document;
 
 public class Admin {
     private BookingAdmin bookingAdmin;
     private VenueAdmin venueAdmin;
     private AmenityAdmin amenityAdmin;
+    private CustomerAdmin customerAdmin;
     private Scanner input;
 
     public Admin(Scanner input) {
@@ -13,6 +15,7 @@ public class Admin {
         this.bookingAdmin = new BookingAdmin();
         this.venueAdmin = new VenueAdmin();
         this.amenityAdmin = new AmenityAdmin();
+        this.customerAdmin = new CustomerAdmin();
     }
 
     public void adminMenu() {
@@ -22,8 +25,9 @@ public class Admin {
             System.out.println("1. Manage Bookings");
             System.out.println("2. Manage Venues");
             System.out.println("3. Manage Amenities");
-            System.out.println("4. Manage Users");
-            System.out.println("5. Exit");
+            System.out.println("4. Manage Customers");
+            System.out.println("5. Manage Users");
+            System.out.println("6. Exit");
             System.out.print("Enter choice: ");
             choice = Integer.parseInt(input.nextLine());
 
@@ -38,15 +42,18 @@ public class Admin {
                     manageAmenities();
                     break;
                 case 4:
-                    manageUsers();
+                    manageCustomers();
                     break;
                 case 5:
+                    manageUsers();
+                    break;
+                case 6:
                     System.out.println("Exiting Admin Menu.");
                     break;
                 default:
                     System.out.println("Invalid option, please try again!");
             }
-        } while (choice != 5);
+        } while (choice != 6);
     }
 
     private void manageUsers() {
@@ -75,6 +82,38 @@ public class Admin {
                     System.out.println("Invalid option, please try again!");
             }
         } while (choice != 3);
+    }
+
+    private void manageCustomers() {
+        int choice;
+        do {
+            System.out.println("\n--- CUSTOMER MANAGEMENT ---");
+            System.out.println("1. Display All Customers");
+            System.out.println("2. Update Customer by ID");
+            System.out.println("3. Delete Customer by ID");
+            System.out.println("4. Back");
+            System.out.print("Enter choice: ");
+            choice = Integer.parseInt(input.nextLine());
+
+            switch (choice) {
+                case 1:
+                    System.out.println("---- ALL CUSTOMERS ----");
+                    User.displayAllUsers();
+                    break;
+                case 2:
+                    customerAdmin.update(input);
+                    break;
+                case 3:
+                    int UserId = Integer.parseInt(input.nextLine());
+                    User.deleteUser(UserId);
+                    break;
+                case 4:
+                    System.out.println("Returning to Admin Menu.");
+                    break;
+                default:
+                    System.out.println("Invalid option, please try again!");
+            }
+        } while (choice != 4);
     }
 
     private void manageBookings() {
@@ -181,5 +220,41 @@ public class Admin {
                     System.out.println("Invalid option, please try again!");
             }
         } while (choice != 5);
+    }
+
+    // Prompt for a customer ID, load the customer, and invoke the shared update routine.
+    private void updateCustomerById() {
+        System.out.print("Enter Customer User ID to update: ");
+        int id;
+        try {
+            id = Integer.parseInt(input.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid User ID.");
+            return;
+        }
+
+        Document doc = MongoDb.getDatabase().getCollection("users").find(new Document("userId", id)).first();
+        if (doc == null) {
+            System.out.println("User not found.");
+            return;
+        }
+        String type = doc.getString("userType");
+        if (type == null || !type.equalsIgnoreCase("customer")) {
+            System.out.println("Specified user is not a customer.");
+            return;
+        }
+
+        Customer customer = new Customer(
+                doc.getString("username"),
+                doc.getString("password"),
+                doc.getInteger("userId"),
+                doc.getString("firstName"),
+                doc.getString("lastName"),
+                doc.getString("contactNumber"),
+                doc.getString("email"),
+                "customer"
+        );
+
+        Customer.updateProfile(input, customer);
     }
 }
