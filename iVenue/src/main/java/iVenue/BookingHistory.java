@@ -18,38 +18,55 @@ public class BookingHistory {
 		loadHistory();
 	}
 
-	private static void loadHistory() {
-		synchronized (finishedQueue) {
-			for (Document doc : collection.find(new Document("type", "finished"))) {
-				Booking b = new Booking(
-					doc.getInteger("bookingId"),
-					null,
-					null,
-					doc.getString("paymentStatus"),
-					doc.getString("bookingStatus"),
-					doc.getString("purpose"),
-					doc.getString("username")
-				);
-				finishedQueue.offer(b);
-			}
-		}
-		synchronized (deletedQueue) {
-			for (Document doc : collection.find(new Document("type", "deleted"))) {
-				Booking b = new Booking(
-					doc.getInteger("bookingId"),
-					null,
-					null,
-					doc.getString("paymentStatus"),
-					doc.getString("bookingStatus"),
-					doc.getString("purpose"),
-					doc.getString("username")
-				);
-				deletedQueue.offer(b);
-			}
-		}
-	}
+    private static void loadHistory() {
+        synchronized (finishedQueue) {
+            for (Document doc : collection.find(new Document("type", "finished"))) {
+                PaymentStatus paymentStatus = PaymentStatus.valueOf(doc.getString("paymentStatus"));
 
-	private static void writeHistory(Booking booking, String type) {
+                // Normalize bookingStatus string from DB
+                String statusStr = doc.getString("bookingStatus");
+                BookingStatus bookingStatus = BookingStatus.valueOf(
+                        statusStr.substring(0,1).toUpperCase() + statusStr.substring(1).toLowerCase()
+                );
+
+                Booking b = new Booking(
+                        doc.getInteger("bookingId"),
+                        null,
+                        null,
+                        paymentStatus,
+                        bookingStatus,
+                        doc.getString("purpose"),
+                        doc.getString("username")
+                );
+                finishedQueue.offer(b);
+            }
+        }
+
+        synchronized (deletedQueue) {
+            for (Document doc : collection.find(new Document("type", "deleted"))) {
+                PaymentStatus paymentStatus = PaymentStatus.valueOf(doc.getString("paymentStatus"));
+
+                String statusStr = doc.getString("bookingStatus");
+                BookingStatus bookingStatus = BookingStatus.valueOf(
+                        statusStr.substring(0,1).toUpperCase() + statusStr.substring(1).toLowerCase()
+                );
+
+                Booking b = new Booking(
+                        doc.getInteger("bookingId"),
+                        null,
+                        null,
+                        paymentStatus,
+                        bookingStatus,
+                        doc.getString("purpose"),
+                        doc.getString("username")
+                );
+                deletedQueue.offer(b);
+            }
+        }
+    }
+
+
+    private static void writeHistory(Booking booking, String type) {
 		if (booking == null) return;
 		Document doc = new Document("bookingId", booking.getBookingId())
 			.append("type", type)

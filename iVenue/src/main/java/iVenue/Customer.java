@@ -187,21 +187,27 @@ public class Customer extends User implements Payment {
         com.mongodb.client.MongoCollection<org.bson.Document> collection = MongoDb.getDatabase().getCollection("bookings");
         org.bson.Document doc = collection.find(new org.bson.Document("bookingId", bookingId)).first();
         if (doc == null) return 0;
+
         double total = 0;
+
+        // Add venue price
         Integer venueId = doc.getInteger("venueId");
         if (venueId != null) {
             Venue v = Venue.getVenue(venueId);
             if (v != null) total += v.getPrice();
         }
+
+        // Add amenities price
         if (doc.containsKey("amenities")) {
-            for (Object aidObj : doc.getList("amenities", Object.class)) {
-                try {
-                    int aid = Integer.parseInt(aidObj.toString());
-                    Amenity a = Amenity.getAmenity(aid);
-                    if (a != null) total += a.getQuantity();
-                } catch (Exception e) { }
+            @SuppressWarnings("unchecked")
+            java.util.List<org.bson.Document> amenities = (java.util.List<org.bson.Document>) doc.get("amenities");
+            for (org.bson.Document aDoc : amenities) {
+                int quantity = aDoc.getInteger("quantity", 0);
+                double price = aDoc.getDouble("price") != null ? aDoc.getDouble("price") : 0;
+                total += price; // already includes quantity*price when stored
             }
         }
+
         return total;
     }
 

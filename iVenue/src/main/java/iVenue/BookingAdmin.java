@@ -19,8 +19,11 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
 
     public void create(Scanner input) {
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+
         System.out.println("----CREATE NEW BOOKING----");
 
+        // Display available venues
         Venue.displayAvailableVenues();
         System.out.print("Enter Venue ID: ");
         int venueId = Integer.parseInt(input.nextLine());
@@ -38,15 +41,35 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
         // Select amenities
         Amenity.displayAmenities();
-        LinkedList<Amenity> selectedAmenities = new LinkedList<>();
+        LinkedList<Amenity> selectedAmenityObjects = new LinkedList<>();
+        LinkedList<Document> selectedAmenityDocs = new LinkedList<>(); // <-- use LinkedList here
+
         while (true) {
-            System.out.print("Enter Amenity ID (0 to stop): ");
-            int amenityId = Integer.parseInt(input.nextLine());
-            if (amenityId == 0) break;
-            Amenity amenity = Amenity.getAmenity(amenityId);
-            if (amenity != null) {
-                selectedAmenities.add(amenity);
-                System.out.println("Added: " + amenity.getName());
+            System.out.print("Enter Amenity ID to add (0 to stop): ");
+            int aid = Integer.parseInt(input.nextLine().trim());
+            if (aid == 0) break;
+
+            Amenity am = Amenity.getAmenity(aid);
+            if (am != null) {
+                int maxQty = am.getQuantity();
+                int qty = 0;
+
+                // Ask user for quantity
+                while (true) {
+                    System.out.print("Enter quantity for " + am.getName() + " (max " + maxQty + "): ");
+                    qty = Integer.parseInt(input.nextLine().trim());
+                    if (qty <= 0 || qty > maxQty) {
+                        System.out.println("Invalid quantity. Must be between 1 and " + maxQty);
+                    } else {
+                        break;
+                    }
+                }
+
+                selectedAmenityObjects.add(am);  // store Amenity object
+                selectedAmenityDocs.add(new Document("amenityId", am.getAmenityId())
+                        .append("quantity", qty)
+                        .append("price", am.getPrice() * qty)); // store total price per amenity
+                System.out.println("Added " + qty + " x " + am.getName());
             } else {
                 System.out.println("Amenity not found.");
             }
@@ -60,34 +83,37 @@ public class BookingAdmin implements AdminManagement<Booking> {
         Document lastBooking = collection.find().sort(new Document("bookingId", -1)).first();
         if (lastBooking != null) maxId = lastBooking.getInteger("bookingId");
 
-        // Create booking
+        // Create booking object
         Date bookingDate = new Date();
-        String paymentStatus = "Pending";
-        String bookingStatus = "Booked";
+        Booking newBooking = new Booking(
+                maxId + 1,
+                selectedVenue,
+                bookingDate,
+                PaymentStatus.Pending,
+                BookingStatus.Pending,
+                purpose,  "N/A"
 
-        Booking newBooking = new Booking(maxId + 1, selectedVenue, bookingDate, paymentStatus, bookingStatus, purpose);
-        newBooking.getAmenities().addAll(selectedAmenities);
+        );
+        newBooking.getAmenities().addAll(selectedAmenityObjects);
 
-        LinkedList<String> amenityNames = new LinkedList<>();
-        for (Amenity a : selectedAmenities) amenityNames.add(a.getName());
-
-        // Include price and FREE/PAID status
+        // Insert booking into MongoDB
         Document doc = new Document("bookingId", newBooking.getBookingId())
                 .append("venueName", selectedVenue.getName())
                 .append("venueId", selectedVenue.getVenueId())
                 .append("date", bookingDate.toString())
-                .append("paymentStatus", paymentStatus)
-                .append("bookingStatus", bookingStatus)
+                .append("paymentStatus", newBooking.getPaymentStatus().name())
+                .append("bookingStatus", newBooking.getBookingStatus().name())
                 .append("purpose", purpose)
-                .append("amenities", amenityNames)
+                .append("amenities", selectedAmenityDocs) // <-- LinkedList used
                 .append("price", selectedVenue.getPrice())
-                .append("isFree", selectedVenue.isFree()); // <-- uses public isFree() method
+                .append("isFree", selectedVenue.isFree());
 
         collection.insertOne(doc);
 
         System.out.println("Booking successfully created. Booking ID: " + newBooking.getBookingId());
         System.out.println("Venue Price: " + selectedVenue.getPriceLabel());
     }
+
 
     // --- UPDATE BOOKING (user input only) ---
     @Override
@@ -102,23 +128,51 @@ public class BookingAdmin implements AdminManagement<Booking> {
             return;
         }
 
-        System.out.print("Enter new Booking Status: ");
-        String newStatus = input.nextLine();
+        // Display enum options
+        System.out.println("Select new Booking Status:");
+        BookingStatus[] statuses = BookingStatus.values();
+        for (int i = 0; i < statuses.length; i++) {
+            System.out.println((i + 1) + ". " + statuses[i]);
+        }
 
+        int choice = 0;
+        while (true) {
+            System.out.print("Enter choice (1-" + statuses.length + "): ");
+            try {
+                choice = Integer.parseInt(input.nextLine());
+                if (choice >= 1 && choice <= statuses.length) break;
+            } catch (NumberFormatException e) {
+                // ignore invalid input
+            }
+            System.out.println("Invalid choice. Try again.");
+        }
+
+        BookingStatus newStatus = statuses[choice - 1];
+
+        // Update in MongoDB
         collection.updateOne(
                 new Document("bookingId", id),
-                new Document("$set", new Document("bookingStatus", newStatus))
+                new Document("$set", new Document("bookingStatus", newStatus.name()))
         );
 
         System.out.println("Booking updated successfully.");
-        if (newStatus != null && (newStatus.equalsIgnoreCase("finished") || newStatus.equalsIgnoreCase("completed") || newStatus.equalsIgnoreCase("done"))) {
-            // Extract username from bookedBy
+
+        // If marking as finished, add to finished history
+        if (newStatus == BookingStatus.Finished) {
             String username = "N/A";
             if (doc.containsKey("bookedBy")) {
                 Document bookedBy = (Document) doc.get("bookedBy");
                 username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
             }
-            Booking snapshot = new Booking(id, null, null, doc.getString("paymentStatus"), newStatus, doc.getString("purpose"), username);
+            Booking snapshot = new Booking(
+                    id,
+                    null,
+                    null,
+                    PaymentStatus.valueOf(doc.getString("paymentStatus")),
+                    newStatus,
+                    doc.getString("purpose"),
+                    username
+            );
             BookingHistory.addFinished(snapshot);
             System.out.println("Booking recorded in finished history.");
         }
@@ -149,7 +203,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
         }
 
         // Add a snapshot of the deleted booking to history before removing from DB
-        Booking deletedSnapshot = new Booking(id, null, null, doc.getString("paymentStatus"), doc.getString("bookingStatus"), doc.getString("purpose"), username);
+        Booking deletedSnapshot = new Booking(id, null, null, PaymentStatus.valueOf(doc.getString("paymentStatus")), BookingStatus.valueOf(doc.getString("bookingStatus")), doc.getString("purpose"), username);
         BookingHistory.addDeleted(deletedSnapshot);
 
         collection.deleteOne(new Document("bookingId", id));

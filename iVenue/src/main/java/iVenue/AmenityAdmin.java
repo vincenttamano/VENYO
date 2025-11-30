@@ -27,6 +27,9 @@ public class AmenityAdmin implements AdminManagement<Amenity> {
         System.out.print("Enter Quantity: ");
         int quantity = Integer.parseInt(input.nextLine());
 
+        System.out.print("Enter Price: ");
+        double price = Double.parseDouble(input.nextLine());
+
         // --- Get max amenityId from MongoDB ---
         int maxId = 0;
         Document lastAmenity = collection.find().sort(new Document("amenityId", -1)).first();
@@ -34,18 +37,19 @@ public class AmenityAdmin implements AdminManagement<Amenity> {
             maxId = lastAmenity.getInteger("amenityId");
         }
 
-        Amenity newAmenity = new Amenity(maxId + 1, name, description, quantity);
+        Amenity newAmenity = new Amenity(maxId + 1, name, description, quantity, price);
 
         // Insert into DB
         Document doc = new Document("amenityId", newAmenity.getAmenityId())
                 .append("name", newAmenity.getName())
                 .append("description", newAmenity.getDescription())
-                .append("quantity", newAmenity.getQuantity());
+                .append("quantity", newAmenity.getQuantity())
+                .append("price", newAmenity.getPrice());
 
         collection.insertOne(doc);
         System.out.println("Amenity added successfully. ID: " + newAmenity.getAmenityId());
     }
-    // --- UPDATE AMENITY (user input only) ---
+
     @Override
     public void update(Scanner input) {
         System.out.println("----UPDATE AMENITY----");
@@ -72,16 +76,20 @@ public class AmenityAdmin implements AdminManagement<Amenity> {
         String quantityInput = input.nextLine();
         int quantity = quantityInput.isEmpty() ? doc.getInteger("quantity") : Integer.parseInt(quantityInput);
 
+        System.out.print("Enter new Price (" + doc.getDouble("price") + "): ");
+        String priceInput = input.nextLine();
+        double price = priceInput.isEmpty() ? doc.getDouble("price") : Double.parseDouble(priceInput);
+
         Document updateFields = new Document()
                 .append("name", name)
                 .append("description", description)
-                .append("quantity", quantity);
+                .append("quantity", quantity)
+                .append("price", price);
 
         collection.updateOne(new Document("amenityId", id), new Document("$set", updateFields));
         System.out.println("Amenity updated successfully.");
     }
 
-    // --- DELETE AMENITY (user input only) ---
     @Override
     public void delete(Scanner input) {
         System.out.println("----DELETE AMENITY----");
@@ -98,7 +106,6 @@ public class AmenityAdmin implements AdminManagement<Amenity> {
         System.out.println("Amenity deleted successfully.");
     }
 
-    // --- DISPLAY ALL AMENITIES (no input) ---
     @Override
     public void displayAll() {
         System.out.println("----ALL AMENITIES----");
@@ -107,6 +114,7 @@ public class AmenityAdmin implements AdminManagement<Amenity> {
             System.out.println("Name: " + doc.getString("name"));
             System.out.println("Description: " + doc.getString("description"));
             System.out.println("Quantity: " + doc.getInteger("quantity"));
+            System.out.println("Price: ₱" + doc.getDouble("price"));
             System.out.println("---------------------------");
         }
     }
