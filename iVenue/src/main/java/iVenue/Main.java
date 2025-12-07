@@ -25,7 +25,7 @@ public class Main {
 
             switch (choice) {
                 case 1:
-                    new User("","",0).login();
+                    new Verification("","",0).login();
                     break;
                 case 2:
                     Customer.registerCustomer(input);

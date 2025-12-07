@@ -71,7 +71,7 @@ public class UserStore {
                     type
             );
         } else {
-            return new User(username, password, id);
+            return new SimpleUser(username, password, id);
         }
     }
 
@@ -84,8 +84,15 @@ public class UserStore {
             int id = doc.getInteger("userId");
             if ("admin".equalsIgnoreCase(type)) out.add(new AdminUser(username, password, id));
             else if ("customer".equalsIgnoreCase(type)) out.add(new Customer(username, password, id, doc.getString("firstName"), doc.getString("lastName"), doc.getString("contactNumber"), doc.getString("email"), type));
-            else out.add(new User(username, password, id));
+            else out.add(new SimpleUser(username, password, id));
         }
         return out;
+    }
+
+    // simple concrete User implementation for non-admin/customer types
+    public static class SimpleUser extends User {
+        public SimpleUser(String username, String password, int userId) {
+            super(username, password, userId);
+        }
     }
 }
