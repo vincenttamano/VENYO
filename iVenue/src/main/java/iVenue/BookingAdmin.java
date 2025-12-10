@@ -27,22 +27,23 @@ public class BookingAdmin implements AdminManagement<Booking> {
         Venue.displayAvailableVenues();
         System.out.print("Enter Venue ID: ");
         int venueId = Integer.parseInt(input.nextLine());
+
         Venue selectedVenue = Venue.getVenue(venueId);
         if (selectedVenue == null) {
             System.out.println("Invalid Venue ID. Booking cancelled.");
             return;
         }
 
-        // Mark venue as unavailable
-        selectedVenue.setAvailability(false);
-        MongoDb.getDatabase().getCollection("venues")
-                .updateOne(new Document("venueId", venueId),
-                        new Document("$set", new Document("availability", false)));
+        // ❌ DO NOT mark venue unavailable
+        // selectedVenue.setAvailability(false);
+        // MongoDb.getDatabase().getCollection("venues")
+        //        .updateOne(new Document("venueId", venueId),
+        //                   new Document("$set", new Document("availability", false)));
 
         // Select amenities
         Amenity.displayAmenities();
         LinkedList<Amenity> selectedAmenityObjects = new LinkedList<>();
-        LinkedList<Document> selectedAmenityDocs = new LinkedList<>(); // <-- use LinkedList here
+        LinkedList<Document> selectedAmenityDocs = new LinkedList<>();
 
         while (true) {
             System.out.print("Enter Amenity ID to add (0 to stop): ");
@@ -52,23 +53,22 @@ public class BookingAdmin implements AdminManagement<Booking> {
             Amenity am = Amenity.getAmenity(aid);
             if (am != null) {
                 int maxQty = am.getQuantity();
-                int qty = 0;
+                int qty;
 
-                // Ask user for quantity
+                // Validate quantity
                 while (true) {
                     System.out.print("Enter quantity for " + am.getName() + " (max " + maxQty + "): ");
                     qty = Integer.parseInt(input.nextLine().trim());
-                    if (qty <= 0 || qty > maxQty) {
-                        System.out.println("Invalid quantity. Must be between 1 and " + maxQty);
-                    } else {
-                        break;
-                    }
+
+                    if (qty >= 1 && qty <= maxQty) break;
+                    System.out.println("Invalid quantity. Must be between 1 and " + maxQty);
                 }
 
-                selectedAmenityObjects.add(am);  // store Amenity object
+                selectedAmenityObjects.add(am);
                 selectedAmenityDocs.add(new Document("amenityId", am.getAmenityId())
                         .append("quantity", qty)
-                        .append("price", am.getPrice() * qty)); // store total price per amenity
+                        .append("price", am.getPrice() * qty));
+
                 System.out.println("Added " + qty + " x " + am.getName());
             } else {
                 System.out.println("Amenity not found.");
@@ -81,7 +81,9 @@ public class BookingAdmin implements AdminManagement<Booking> {
         // Generate Booking ID
         int maxId = 0;
         Document lastBooking = collection.find().sort(new Document("bookingId", -1)).first();
-        if (lastBooking != null) maxId = lastBooking.getInteger("bookingId");
+        if (lastBooking != null) {
+            maxId = lastBooking.getInteger("bookingId");
+        }
 
         // Create booking object
         Date bookingDate = new Date();
@@ -91,12 +93,13 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 bookingDate,
                 PaymentStatus.Pending,
                 BookingStatus.Pending,
-                purpose,  "N/A"
-
+                purpose,
+                "N/A"
         );
+
         newBooking.getAmenities().addAll(selectedAmenityObjects);
 
-        // Insert booking into MongoDB
+        // Build MongoDB document
         Document doc = new Document("bookingId", newBooking.getBookingId())
                 .append("venueName", selectedVenue.getName())
                 .append("venueId", selectedVenue.getVenueId())
@@ -104,10 +107,11 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 .append("paymentStatus", newBooking.getPaymentStatus().name())
                 .append("bookingStatus", newBooking.getBookingStatus().name())
                 .append("purpose", purpose)
-                .append("amenities", selectedAmenityDocs) // <-- LinkedList used
+                .append("amenities", selectedAmenityDocs)
                 .append("price", selectedVenue.getPrice())
                 .append("isFree", selectedVenue.isFree());
 
+        // Insert into DB
         collection.insertOne(doc);
 
         System.out.println("Booking successfully created. Booking ID: " + newBooking.getBookingId());
