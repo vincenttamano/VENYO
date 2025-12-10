@@ -153,7 +153,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
         BookingStatus newStatus = statuses[choice - 1];
 
-        // Update in MongoDB
+        // Update booking status in MongoDB
         collection.updateOne(
                 new Document("bookingId", id),
                 new Document("$set", new Document("bookingStatus", newStatus.name()))
@@ -161,24 +161,38 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
         System.out.println("Booking updated successfully.");
 
-        // If marking as finished, add to finished history
-        if (newStatus == BookingStatus.FINISHED) {
-            String username = "N/A";
-            if (doc.containsKey("bookedBy")) {
-                Document bookedBy = (Document) doc.get("bookedBy");
-                username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
+        // If marking as finished or cancelled
+        if (newStatus == BookingStatus.FINISHED || newStatus == BookingStatus.CANCELLED) {
+            // Update venue availability
+            if (doc.containsKey("venueId")) {
+                int venueId = doc.getInteger("venueId");
+                MongoCollection<Document> venueCollection = MongoDb.getDatabase().getCollection("venues");
+                venueCollection.updateOne(
+                        new Document("venueId", venueId),
+                        new Document("$set", new Document("isAvailable", true))
+                );
+                System.out.println("Venue marked as available.");
             }
-            Booking snapshot = new Booking(
-                    id,
-                    null,
-                    null,
-                    PaymentStatus.valueOf(doc.getString("paymentStatus")),
-                    newStatus,
-                    doc.getString("purpose"),
-                    username
-            );
-            BookingHistory.addFinished(snapshot);
-            System.out.println("Booking recorded in finished history.");
+
+            // Record finished history only if FINISHED
+            if (newStatus == BookingStatus.FINISHED) {
+                String username = "N/A";
+                if (doc.containsKey("bookedBy")) {
+                    Document bookedBy = (Document) doc.get("bookedBy");
+                    username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
+                }
+                Booking snapshot = new Booking(
+                        id,
+                        null,
+                        null,
+                        PaymentStatus.valueOf(doc.getString("paymentStatus")),
+                        newStatus,
+                        doc.getString("purpose"),
+                        username
+                );
+                BookingHistory.addFinished(snapshot);
+                System.out.println("Booking recorded in finished history.");
+            }
         }
     }
 
