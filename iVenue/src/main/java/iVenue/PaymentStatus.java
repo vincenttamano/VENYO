@@ -1,5 +1,8 @@
 package iVenue;
 
 public enum PaymentStatus {
-    Pending,Paid,Cancelled
+    UNPAID,
+    DOWNPAID,
+    PAID,
+    CANCELLED
 }

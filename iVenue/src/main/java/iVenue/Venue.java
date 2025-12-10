@@ -160,11 +160,16 @@ public class Venue {
 
     // -------- Get Venue by ID --------
 
-    public static Venue getVenue(int venueId) {
+    public static Venue getVenue(int venueId, boolean onlyIfAvailable) {
         MongoDatabase database = MongoDb.getDatabase();
         MongoCollection<Document> collection = database.getCollection("venues");
 
-        Document doc = collection.find(new Document("venueId", venueId)).first();
+        Document query = new Document("venueId", venueId);
+        if (onlyIfAvailable) {
+            query.append("availability", true);
+        }
+
+        Document doc = collection.find(query).first();
 
         if (doc != null) {
             return new Venue(
@@ -178,8 +183,7 @@ public class Venue {
             );
         }
 
-        System.out.println("Venue not found!");
-        return null;
+        return null; // venue not found or not available
     }
 
 }

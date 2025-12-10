@@ -1,9 +1,9 @@
 package iVenue;
 
 public enum BookingStatus {
-    Booked,
-    Pending,
-    Cancelled,
-    Finished
+    BOOKED,
+    PENDING,
+    CANCELLED,
+    FINISHED
 
 }

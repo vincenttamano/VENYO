@@ -7,27 +7,41 @@ import java.util.ArrayList;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 
-
 public class BookingHistory {
 
-	private static final Queue<Booking> finishedQueue = new LinkedList<>();
-	private static final Queue<Booking> deletedQueue = new LinkedList<>();
-	private static final MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("booking_history");
+    private static final Queue<Booking> finishedQueue = new LinkedList<>();
+    private static final Queue<Booking> deletedQueue = new LinkedList<>();
+    private static final MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("booking_history");
 
-	static {
-		loadHistory();
-	}
+    static {
+        loadHistory();
+    }
 
+    // -------------------- Helper methods --------------------
+    private static PaymentStatus parsePaymentStatus(String s) {
+        try {
+            return PaymentStatus.valueOf(s.toUpperCase());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            System.out.println("Warning: Invalid payment status in DB: " + s + ", defaulting to UNPAID");
+            return PaymentStatus.UNPAID;
+        }
+    }
+
+    private static BookingStatus parseBookingStatus(String s) {
+        try {
+            return BookingStatus.valueOf(s.toUpperCase());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            System.out.println("Warning: Invalid booking status in DB: " + s + ", defaulting to PENDING");
+            return BookingStatus.PENDING;
+        }
+    }
+
+    // -------------------- Load history --------------------
     private static void loadHistory() {
         synchronized (finishedQueue) {
             for (Document doc : collection.find(new Document("type", "finished"))) {
-                PaymentStatus paymentStatus = PaymentStatus.valueOf(doc.getString("paymentStatus"));
-
-                // Normalize bookingStatus string from DB
-                String statusStr = doc.getString("bookingStatus");
-                BookingStatus bookingStatus = BookingStatus.valueOf(
-                        statusStr.substring(0,1).toUpperCase() + statusStr.substring(1).toLowerCase()
-                );
+                PaymentStatus paymentStatus = parsePaymentStatus(doc.getString("paymentStatus"));
+                BookingStatus bookingStatus = parseBookingStatus(doc.getString("bookingStatus"));
 
                 Booking b = new Booking(
                         doc.getInteger("bookingId"),
@@ -44,12 +58,8 @@ public class BookingHistory {
 
         synchronized (deletedQueue) {
             for (Document doc : collection.find(new Document("type", "deleted"))) {
-                PaymentStatus paymentStatus = PaymentStatus.valueOf(doc.getString("paymentStatus"));
-
-                String statusStr = doc.getString("bookingStatus");
-                BookingStatus bookingStatus = BookingStatus.valueOf(
-                        statusStr.substring(0,1).toUpperCase() + statusStr.substring(1).toLowerCase()
-                );
+                PaymentStatus paymentStatus = parsePaymentStatus(doc.getString("paymentStatus"));
+                BookingStatus bookingStatus = parseBookingStatus(doc.getString("bookingStatus"));
 
                 Booking b = new Booking(
                         doc.getInteger("bookingId"),
@@ -65,126 +75,123 @@ public class BookingHistory {
         }
     }
 
-
+    // -------------------- Write history --------------------
     private static void writeHistory(Booking booking, String type) {
-		if (booking == null) return;
-		Document doc = new Document("bookingId", booking.getBookingId())
-			.append("type", type)
-			.append("paymentStatus", booking.getPaymentStatus())
-			.append("bookingStatus", booking.getBookingStatus())
-			.append("purpose", booking.getPurpose())
-			.append("username", booking.getUsername())
-			.append("timestamp", new java.util.Date());
-		collection.insertOne(doc);
-	}
+        if (booking == null) return;
+        Document doc = new Document("bookingId", booking.getBookingId())
+                .append("type", type)
+                .append("paymentStatus", booking.getPaymentStatus().name())
+                .append("bookingStatus", booking.getBookingStatus().name())
+                .append("purpose", booking.getPurpose())
+                .append("username", booking.getUsername())
+                .append("timestamp", new java.util.Date());
+        collection.insertOne(doc);
+    }
 
-	// --- Finished bookings ---
+    // -------------------- Finished bookings --------------------
+    public static synchronized void addFinished(Booking booking) {
+        if (booking == null) return;
+        finishedQueue.offer(booking);
+        writeHistory(booking, "finished");
+    }
 
-	public static synchronized void addFinished(Booking booking) {
-		if (booking == null) return;
-		finishedQueue.offer(booking);
-		writeHistory(booking, "finished");
-	}
+    public static synchronized Booking peekFinished() {
+        return finishedQueue.peek();
+    }
 
-	public static synchronized Booking peekFinished() {
-		return finishedQueue.peek();
-	}
+    public static synchronized Booking pollFinished() {
+        return finishedQueue.poll();
+    }
 
-	public static synchronized Booking pollFinished() {
-		return finishedQueue.poll();
-	}
+    public static synchronized List<Booking> listFinished() {
+        return new ArrayList<>(finishedQueue);
+    }
 
-	public static synchronized List<Booking> listFinished() {
-		return new ArrayList<>(finishedQueue);
-	}
+    public static synchronized int finishedCount() {
+        return finishedQueue.size();
+    }
 
-	public static synchronized int finishedCount() {
-		return finishedQueue.size();
-	}
+    public static synchronized void clearFinished() {
+        finishedQueue.clear();
+        collection.deleteMany(new Document("type", "finished"));
+    }
 
-	public static synchronized void clearFinished() {
-		finishedQueue.clear();
-		collection.deleteMany(new Document("type", "finished"));
-	}
+    // -------------------- Deleted bookings --------------------
+    public static synchronized void addDeleted(Booking booking) {
+        if (booking == null) return;
+        deletedQueue.offer(booking);
+        writeHistory(booking, "deleted");
+    }
 
-	// --- Deleted bookings ---
+    public static synchronized Booking peekDeleted() {
+        return deletedQueue.peek();
+    }
 
-	public static synchronized void addDeleted(Booking booking) {
-		if (booking == null) return;
-		deletedQueue.offer(booking);
-		writeHistory(booking, "deleted");
-	}
+    public static synchronized Booking pollDeleted() {
+        return deletedQueue.poll();
+    }
 
-	public static synchronized Booking peekDeleted() {
-		return deletedQueue.peek();
-	}
+    public static synchronized List<Booking> listDeleted() {
+        return new ArrayList<>(deletedQueue);
+    }
 
-	public static synchronized Booking pollDeleted() {
-		return deletedQueue.poll();
-	}
+    public static synchronized int deletedCount() {
+        return deletedQueue.size();
+    }
 
-	public static synchronized List<Booking> listDeleted() {
-		return new ArrayList<>(deletedQueue);
-	}
+    public static synchronized void clearDeleted() {
+        deletedQueue.clear();
+        collection.deleteMany(new Document("type", "deleted"));
+    }
 
-	public static synchronized int deletedCount() {
-		return deletedQueue.size();
-	}
+    public static synchronized boolean moveDeletedToFinished() {
+        Booking b = deletedQueue.poll();
+        if (b == null) return false;
+        finishedQueue.offer(b);
+        collection.deleteOne(new Document("bookingId", b.getBookingId()).append("type", "deleted"));
+        writeHistory(b, "finished");
+        return true;
+    }
 
-	public static synchronized void clearDeleted() {
-		deletedQueue.clear();
-		collection.deleteMany(new Document("type", "deleted"));
-	}
+    // -------------------- Lookup by booking ID --------------------
+    public static synchronized Booking findFinishedById(int bookingId) {
+        for (Booking b : finishedQueue) {
+            if (b.getBookingId() == bookingId) return b;
+        }
+        return null;
+    }
 
-	public static synchronized boolean moveDeletedToFinished() {
-		Booking b = deletedQueue.poll();
-		if (b == null) return false;
-		finishedQueue.offer(b);
-		collection.deleteOne(new Document("bookingId", b.getBookingId()).append("type", "deleted"));
-		writeHistory(b, "finished");
-		return true;
-	}
+    public static synchronized Booking findDeletedById(int bookingId) {
+        for (Booking b : deletedQueue) {
+            if (b.getBookingId() == bookingId) return b;
+        }
+        return null;
+    }
 
-	// Convenience lookup by booking id
-	public static synchronized Booking findFinishedById(int bookingId) {
-		for (Booking b : finishedQueue) {
-			if (b.getBookingId() == bookingId) return b;
-		}
-		return null;
-	}
+    public static synchronized boolean removeFinishedById(int bookingId) {
+        java.util.Iterator<Booking> it = finishedQueue.iterator();
+        while (it.hasNext()) {
+            Booking b = it.next();
+            if (b.getBookingId() == bookingId) {
+                it.remove();
+                collection.deleteOne(new Document("bookingId", bookingId).append("type", "finished"));
+                return true;
+            }
+        }
+        return false;
+    }
 
-	public static synchronized Booking findDeletedById(int bookingId) {
-		for (Booking b : deletedQueue) {
-			if (b.getBookingId() == bookingId) return b;
-		}
-		return null;
-	}
-
-	public static synchronized boolean removeFinishedById(int bookingId) {
-		java.util.Iterator<Booking> it = finishedQueue.iterator();
-		while (it.hasNext()) {
-			Booking b = it.next();
-			if (b.getBookingId() == bookingId) {
-				it.remove();
-				collection.deleteOne(new Document("bookingId", bookingId).append("type", "finished"));
-				return true;
-			}
-		}
-		return false;
-	}
-
-	public static synchronized boolean removeDeletedById(int bookingId) {
-		java.util.Iterator<Booking> it = deletedQueue.iterator();
-		while (it.hasNext()) {
-			Booking b = it.next();
-			if (b.getBookingId() == bookingId) {
-				it.remove();
-				collection.deleteOne(new Document("bookingId", bookingId).append("type", "deleted"));
-				return true;
-			}
-		}
-		return false;
-	}
+    public static synchronized boolean removeDeletedById(int bookingId) {
+        java.util.Iterator<Booking> it = deletedQueue.iterator();
+        while (it.hasNext()) {
+            Booking b = it.next();
+            if (b.getBookingId() == bookingId) {
+                it.remove();
+                collection.deleteOne(new Document("bookingId", bookingId).append("type", "deleted"));
+                return true;
+            }
+        }
+        return false;
+    }
 
 }
-

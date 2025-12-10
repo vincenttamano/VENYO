@@ -193,7 +193,7 @@ public class Customer extends User implements Payment {
         // Add venue price
         Integer venueId = doc.getInteger("venueId");
         if (venueId != null) {
-            Venue v = Venue.getVenue(venueId);
+            Venue v = Venue.getVenue(venueId, false); // add the boolean parameter
             if (v != null) total += v.getPrice();
         }
 
@@ -202,9 +202,8 @@ public class Customer extends User implements Payment {
             @SuppressWarnings("unchecked")
             java.util.List<org.bson.Document> amenities = (java.util.List<org.bson.Document>) doc.get("amenities");
             for (org.bson.Document aDoc : amenities) {
-                int quantity = aDoc.getInteger("quantity", 0);
                 double price = aDoc.getDouble("price") != null ? aDoc.getDouble("price") : 0;
-                total += price; // already includes quantity*price when stored
+                total += price; // already includes quantity * price when stored
             }
         }
 

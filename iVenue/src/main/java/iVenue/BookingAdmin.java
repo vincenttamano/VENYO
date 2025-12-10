@@ -28,7 +28,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
         System.out.print("Enter Venue ID: ");
         int venueId = Integer.parseInt(input.nextLine());
 
-        Venue selectedVenue = Venue.getVenue(venueId);
+        Venue selectedVenue= Venue.getVenue(venueId, true);
         if (selectedVenue == null) {
             System.out.println("Invalid Venue ID. Booking cancelled.");
             return;
@@ -91,8 +91,8 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 maxId + 1,
                 selectedVenue,
                 bookingDate,
-                PaymentStatus.Pending,
-                BookingStatus.Pending,
+                PaymentStatus.UNPAID,
+                BookingStatus.PENDING,
                 purpose,
                 "N/A"
         );
@@ -162,7 +162,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
         System.out.println("Booking updated successfully.");
 
         // If marking as finished, add to finished history
-        if (newStatus == BookingStatus.Finished) {
+        if (newStatus == BookingStatus.FINISHED) {
             String username = "N/A";
             if (doc.containsKey("bookedBy")) {
                 Document bookedBy = (Document) doc.get("bookedBy");
