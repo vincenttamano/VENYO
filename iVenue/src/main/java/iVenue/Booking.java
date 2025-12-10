@@ -12,10 +12,10 @@ public class Booking {
     private int bookingId;
     private Venue venue;
     private Date date;
-    private PaymentStatus paymentStatus; // enum
-    private BookingStatus bookingStatus; // enum
+    private PaymentStatus paymentStatus;
+    private BookingStatus bookingStatus;
     private String purpose;
-    private LinkedList<Amenity> amenities; // keep Amenity objects
+    private LinkedList<Amenity> amenities;
     private String username;
 
     private static LinkedList<Booking> bookings = new LinkedList<>();
@@ -32,8 +32,6 @@ public class Booking {
         this.amenities = new LinkedList<>();
         this.username = username;
     }
-
-
 
     public int getBookingId() { return bookingId; }
     public void setBookingId(int bookingId) { this.bookingId = bookingId; }
@@ -59,18 +57,13 @@ public class Booking {
     public static LinkedList<Booking> getBookings() { return bookings; }
     public static void setBookings(LinkedList<Booking> bookings) { Booking.bookings = bookings; }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
 
-
-
-    // CREATE BOOKING
+    // ===============================================
+    // CREATE BOOKING  (NO VENUE AVAILABILITY CHANGE)
+    // ===============================================
     public static void createBooking(Customer customer) {
         Scanner sc = new Scanner(System.in);
 
@@ -78,21 +71,32 @@ public class Booking {
         System.out.print("Choose venue ID: ");
         int vid = Integer.parseInt(sc.nextLine().trim());
         Venue chosen = Venue.getVenue(vid);
-        if (chosen == null) { System.out.println("Invalid venue."); return; }
+        if (chosen == null) {
+            System.out.println("Invalid venue.");
+            return;
+        }
 
         Amenity.displayAmenities();
         LinkedList<Document> selectedAmenities = new LinkedList<>();
+
         while (true) {
             System.out.print("Enter Amenity ID to add (0 to stop): ");
             int aid = Integer.parseInt(sc.nextLine().trim());
             if (aid == 0) break;
+
             Amenity am = Amenity.getAmenity(aid);
             if (am != null) {
                 System.out.print("Enter quantity for " + am.getName() + " (max " + am.getQuantity() + "): ");
                 int qty = Integer.parseInt(sc.nextLine().trim());
-                selectedAmenities.add(new Document("amenityId", aid).append("quantity", qty).append("price", am.getPrice() * qty));
+                selectedAmenities.add(
+                        new Document("amenityId", aid)
+                                .append("quantity", qty)
+                                .append("price", am.getPrice() * qty)
+                );
                 System.out.println("Added " + qty + " x " + am.getName());
-            } else System.out.println("Amenity not found.");
+            } else {
+                System.out.println("Amenity not found.");
+            }
         }
 
         System.out.print("Purpose: ");
@@ -104,7 +108,10 @@ public class Booking {
         if (last != null) maxId = last.getInteger("bookingId");
 
         int userId = customer.getUserId();
-        Document userDoc = MongoDb.getDatabase().getCollection("users").find(new Document("userId", userId)).first();
+        Document userDoc = MongoDb.getDatabase().getCollection("users")
+                .find(new Document("userId", userId))
+                .first();
+
         Document bookedBy = new Document("userId", userId)
                 .append("username", customer.getUsername())
                 .append("firstName", userDoc != null ? userDoc.getString("firstName") : customer.getFirstName())
@@ -112,6 +119,7 @@ public class Booking {
                 .append("contactNumber", userDoc != null ? userDoc.getString("contactNumber") : customer.getContactNumber())
                 .append("email", userDoc != null ? userDoc.getString("email") : customer.getEmail());
 
+        // Insert booking (NOT changing venue availability)
         collection.insertOne(new Document("bookingId", maxId + 1)
                 .append("venueId", chosen.getVenueId())
                 .append("venueName", chosen.getName())
@@ -125,8 +133,8 @@ public class Booking {
                 .append("price", chosen.getPrice())
                 .append("isFree", chosen.isFree()));
 
-        MongoDb.getDatabase().getCollection("venues")
-                .updateOne(new Document("venueId", chosen.getVenueId()), new Document("$set", new Document("availability", false)));
+        // ❌ REMOVED: availability = false
+        // (As you requested)
 
         System.out.println("Booking created with ID: " + (maxId + 1));
     }
@@ -142,37 +150,32 @@ public class Booking {
         MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
 
         Document doc = collection.find(
-                        new Document("bookingId", id).append("userId", customer.getUserId()))
-                .first();
+                new Document("bookingId", id).append("userId", customer.getUserId())
+        ).first();
 
         if (doc == null) {
             System.out.println("Booking not found or not your booking.");
             return;
         }
 
-        // Update both bookingStatus and paymentStatus to Cancelled
         collection.updateOne(
                 new Document("bookingId", id),
-                new Document("$set", new Document("bookingStatus", BookingStatus.Cancelled.name())
-                        .append("paymentStatus", PaymentStatus.Cancelled.name()))
+                new Document("$set",
+                        new Document("bookingStatus", BookingStatus.Cancelled.name())
+                                .append("paymentStatus", PaymentStatus.Cancelled.name()))
         );
 
         int venueId = doc.getInteger("venueId");
 
+        // Restore availability only if you want — leaving unchanged
         MongoDb.getDatabase().getCollection("venues")
                 .updateOne(new Document("venueId", venueId),
                         new Document("$set", new Document("availability", true)));
-        String username = "N/A";
-        if (doc.containsKey("bookedBy")) {
-            Document bookedBy = (Document) doc.get("bookedBy");
-            username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
-        }
 
         System.out.println("Booking cancelled and payment status set to Cancelled.");
     }
 
 
-    // VIEW OWN BOOKINGS
     // VIEW OWN BOOKINGS
     public static void viewBookingDetails(Customer customer) {
         MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
@@ -186,7 +189,6 @@ public class Booking {
             System.out.println("Status: " + doc.getString("bookingStatus"));
             System.out.println("Price: " + doc.getDouble("price"));
 
-            // Display amenities nicely
             if (doc.containsKey("amenities")) {
                 System.out.println("Amenities selected:");
                 for (Object obj : doc.getList("amenities", Object.class)) {
@@ -196,7 +198,7 @@ public class Booking {
                         double price = aDoc.getDouble("price");
 
                         Amenity a = Amenity.getAmenity(aid);
-                        String name = (a != null) ? a.getName() : "Unknown Amenity";
+                        String name = a != null ? a.getName() : "Unknown Amenity";
 
                         System.out.println(" - " + name + " x" + qty + " (₱" + price + ")");
                     }
@@ -204,12 +206,10 @@ public class Booking {
             } else {
                 System.out.println("Amenities: None");
             }
-
             System.out.println("---------------------------");
         }
 
-        if (!found)
-            System.out.println("You have no bookings.");
+        if (!found) System.out.println("You have no bookings.");
     }
 
 
@@ -222,8 +222,8 @@ public class Booking {
         MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
 
         Document doc = collection.find(
-                        new Document("bookingId", id).append("userId", customer.getUserId()))
-                .first();
+                new Document("bookingId", id).append("userId", customer.getUserId())
+        ).first();
 
         if (doc == null) {
             System.out.println("Booking not found or not your booking.");
@@ -232,6 +232,7 @@ public class Booking {
 
         System.out.println("Status: " + doc.getString("bookingStatus"));
     }
+
 
     // PAY BOOKING
     public static void payBooking(Customer customer) {
@@ -257,23 +258,18 @@ public class Booking {
 
         double total = 0;
 
-        // Venue price
         Integer venueId = doc.getInteger("venueId");
         if (venueId != null) {
             Venue v = Venue.getVenue(venueId);
             if (v != null) total += v.getPrice();
         }
 
-        // Amenities price
         if (doc.containsKey("amenities")) {
-            @SuppressWarnings("unchecked")
-            java.util.List<Document> amenitiesList = (java.util.List<Document>) doc.get("amenities");
+            var amenitiesList = doc.getList("amenities", Document.class);
             System.out.println("Amenities selected:");
             for (Document aDoc : amenitiesList) {
                 int quantity = aDoc.getInteger("quantity", 0);
-                double price = 0;
-                Object priceObj = aDoc.get("price");
-                if (priceObj instanceof Number) price = ((Number) priceObj).doubleValue();
+                double price = aDoc.getDouble("price");
                 total += price;
                 System.out.println(" - " + aDoc.getInteger("amenityId") + " x " + quantity + " (₱" + price + ")");
             }
@@ -285,19 +281,24 @@ public class Booking {
         System.out.print("Enter any input to simulate payment: ");
         sc.nextLine();
 
-        collection.updateOne(new Document("bookingId", id),
+        collection.updateOne(
+                new Document("bookingId", id),
                 new Document("$set",
                         new Document("paymentStatus", PaymentStatus.Paid.name())
                                 .append("bookingStatus", BookingStatus.Booked.name())
                                 .append("total", total)));
 
-        System.out.println("Payment accepted. Booking confirmed.");
+        // OPTIONAL: You can enable this line if you want to mark venue unavailable after payment
+        // MongoDb.getDatabase().getCollection("venues")
+        //       .updateOne(new Document("venueId", venueId),
+        //                new Document("$set", new Document("availability", false)));
 
-        String username = customer.getUsername();
-        Booking finishedSnapshot = new Booking(id, null, null, PaymentStatus.Paid, BookingStatus.Booked, doc.getString("purpose"), username);
+        Booking finishedSnapshot = new Booking(id, null, null,
+                PaymentStatus.Paid, BookingStatus.Booked,
+                doc.getString("purpose"), customer.getUsername());
+
         BookingHistory.addFinished(finishedSnapshot);
+
         System.out.println("Payment accepted. Booking confirmed and recorded in finished history.");
     }
 }
-
-
