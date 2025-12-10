@@ -167,9 +167,10 @@ public class BookingAdmin implements AdminManagement<Booking> {
             if (doc.containsKey("venueId")) {
                 int venueId = doc.getInteger("venueId");
                 MongoCollection<Document> venueCollection = MongoDb.getDatabase().getCollection("venues");
+                // Ensure we set `availability` (used elsewhere) to true so the venue becomes available again
                 venueCollection.updateOne(
-                        new Document("venueId", venueId),
-                        new Document("$set", new Document("isAvailable", true))
+                    new Document("venueId", venueId),
+                    new Document("$set", new Document("availability", true))
                 );
                 System.out.println("Venue marked as available.");
             }

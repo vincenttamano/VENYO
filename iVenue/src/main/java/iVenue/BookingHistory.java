@@ -17,31 +17,50 @@ public class BookingHistory {
         loadHistory();
     }
 
-    // -------------------- Helper methods --------------------
-    private static PaymentStatus parsePaymentStatus(String s) {
-        try {
-            return PaymentStatus.valueOf(s.toUpperCase());
-        } catch (IllegalArgumentException | NullPointerException e) {
-            System.out.println("Warning: Invalid payment status in DB: " + s + ", defaulting to UNPAID");
-            return PaymentStatus.UNPAID;
-        }
-    }
-
-    private static BookingStatus parseBookingStatus(String s) {
-        try {
-            return BookingStatus.valueOf(s.toUpperCase());
-        } catch (IllegalArgumentException | NullPointerException e) {
-            System.out.println("Warning: Invalid booking status in DB: " + s + ", defaulting to PENDING");
-            return BookingStatus.PENDING;
-        }
-    }
-
-    // -------------------- Load history --------------------
     private static void loadHistory() {
         synchronized (finishedQueue) {
             for (Document doc : collection.find(new Document("type", "finished"))) {
-                PaymentStatus paymentStatus = parsePaymentStatus(doc.getString("paymentStatus"));
-                BookingStatus bookingStatus = parseBookingStatus(doc.getString("bookingStatus"));
+                // Parse paymentStatus from DB in a case-insensitive manner
+                String payStr = doc.getString("paymentStatus");
+                PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+                if (payStr != null) {
+                    boolean matched = false;
+                    for (PaymentStatus ps : PaymentStatus.values()) {
+                        if (ps.name().equalsIgnoreCase(payStr)) {
+                            paymentStatus = ps;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        // try capitalized form as fallback
+                        try {
+                            paymentStatus = PaymentStatus
+                                    .valueOf(payStr.substring(0, 1).toUpperCase() + payStr.substring(1).toLowerCase());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+
+                // Normalize bookingStatus string from DB
+                String statusStr = doc.getString("bookingStatus");
+                BookingStatus bookingStatus = BookingStatus.PENDING;
+                if (statusStr != null) {
+                    boolean matched = false;
+                    for (BookingStatus bs : BookingStatus.values()) {
+                        if (bs.name().equalsIgnoreCase(statusStr)) {
+                            bookingStatus = bs;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        try {
+                            bookingStatus = BookingStatus.valueOf(statusStr.toUpperCase());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
 
                 Booking b = new Booking(
                         doc.getInteger("bookingId"),
@@ -50,16 +69,51 @@ public class BookingHistory {
                         paymentStatus,
                         bookingStatus,
                         doc.getString("purpose"),
-                        doc.getString("username")
-                );
+                        doc.getString("username"));
                 finishedQueue.offer(b);
             }
         }
 
         synchronized (deletedQueue) {
             for (Document doc : collection.find(new Document("type", "deleted"))) {
-                PaymentStatus paymentStatus = parsePaymentStatus(doc.getString("paymentStatus"));
-                BookingStatus bookingStatus = parseBookingStatus(doc.getString("bookingStatus"));
+                String payStr = doc.getString("paymentStatus");
+                PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+                if (payStr != null) {
+                    boolean matched = false;
+                    for (PaymentStatus ps : PaymentStatus.values()) {
+                        if (ps.name().equalsIgnoreCase(payStr)) {
+                            paymentStatus = ps;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        try {
+                            paymentStatus = PaymentStatus
+                                    .valueOf(payStr.substring(0, 1).toUpperCase() + payStr.substring(1).toLowerCase());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+
+                String statusStr = doc.getString("bookingStatus");
+                BookingStatus bookingStatus = BookingStatus.PENDING;
+                if (statusStr != null) {
+                    boolean matched = false;
+                    for (BookingStatus bs : BookingStatus.values()) {
+                        if (bs.name().equalsIgnoreCase(statusStr)) {
+                            bookingStatus = bs;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        try {
+                            bookingStatus = BookingStatus.valueOf(statusStr.toUpperCase());
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
 
                 Booking b = new Booking(
                         doc.getInteger("bookingId"),
@@ -68,29 +122,30 @@ public class BookingHistory {
                         paymentStatus,
                         bookingStatus,
                         doc.getString("purpose"),
-                        doc.getString("username")
-                );
+                        doc.getString("username"));
                 deletedQueue.offer(b);
             }
         }
     }
 
-    // -------------------- Write history --------------------
     private static void writeHistory(Booking booking, String type) {
-        if (booking == null) return;
+        if (booking == null)
+            return;
         Document doc = new Document("bookingId", booking.getBookingId())
                 .append("type", type)
-                .append("paymentStatus", booking.getPaymentStatus().name())
-                .append("bookingStatus", booking.getBookingStatus().name())
+                .append("paymentStatus", booking.getPaymentStatus())
+                .append("bookingStatus", booking.getBookingStatus())
                 .append("purpose", booking.getPurpose())
                 .append("username", booking.getUsername())
                 .append("timestamp", new java.util.Date());
         collection.insertOne(doc);
     }
 
-    // -------------------- Finished bookings --------------------
+    // --- Finished bookings ---
+
     public static synchronized void addFinished(Booking booking) {
-        if (booking == null) return;
+        if (booking == null)
+            return;
         finishedQueue.offer(booking);
         writeHistory(booking, "finished");
     }
@@ -116,9 +171,11 @@ public class BookingHistory {
         collection.deleteMany(new Document("type", "finished"));
     }
 
-    // -------------------- Deleted bookings --------------------
+    // --- Deleted bookings ---
+
     public static synchronized void addDeleted(Booking booking) {
-        if (booking == null) return;
+        if (booking == null)
+            return;
         deletedQueue.offer(booking);
         writeHistory(booking, "deleted");
     }
@@ -146,24 +203,27 @@ public class BookingHistory {
 
     public static synchronized boolean moveDeletedToFinished() {
         Booking b = deletedQueue.poll();
-        if (b == null) return false;
+        if (b == null)
+            return false;
         finishedQueue.offer(b);
         collection.deleteOne(new Document("bookingId", b.getBookingId()).append("type", "deleted"));
         writeHistory(b, "finished");
         return true;
     }
 
-    // -------------------- Lookup by booking ID --------------------
+    // Convenience lookup by booking id
     public static synchronized Booking findFinishedById(int bookingId) {
         for (Booking b : finishedQueue) {
-            if (b.getBookingId() == bookingId) return b;
+            if (b.getBookingId() == bookingId)
+                return b;
         }
         return null;
     }
 
     public static synchronized Booking findDeletedById(int bookingId) {
         for (Booking b : deletedQueue) {
-            if (b.getBookingId() == bookingId) return b;
+            if (b.getBookingId() == bookingId)
+                return b;
         }
         return null;
     }
@@ -192,6 +252,75 @@ public class BookingHistory {
             }
         }
         return false;
+    }
+
+    // --- Additional helpers ---
+    // List finished (paid) bookings by username
+    public static synchronized List<Booking> listFinishedByUsername(String username) {
+        List<Booking> result = new ArrayList<>();
+        for (Booking b : finishedQueue) {
+            if (b.getUsername() != null && b.getUsername().equals(username))
+                result.add(b);
+        }
+        return result;
+    }
+
+    // List unpaid bookings (present in `bookings` collection with
+    // PaymentStatus.Pending) for a userId
+    public static synchronized List<Booking> listUnpaidFromBookings(int userId) {
+        List<Booking> result = new ArrayList<>();
+        com.mongodb.client.MongoCollection<Document> coll = MongoDb.getDatabase().getCollection("bookings");
+        for (Document doc : coll
+                .find(new Document("userId", userId).append("paymentStatus", PaymentStatus.UNPAID.name()))) {
+            Integer id = doc.getInteger("bookingId");
+            String purpose = doc.getString("purpose");
+            String uname = null;
+            if (doc.containsKey("bookedBy") && doc.get("bookedBy") instanceof Document bb) {
+                uname = bb.getString("username");
+            }
+            String statusStr = doc.getString("bookingStatus");
+            BookingStatus bstat = BookingStatus.PENDING;
+            if (statusStr != null) {
+                try {
+                    bstat = BookingStatus.valueOf(statusStr);
+                } catch (Exception e) {
+                    // keep default
+                }
+            }
+            Booking b = new Booking(id != null ? id : 0, null, null, PaymentStatus.UNPAID, bstat, purpose, uname);
+            result.add(b);
+        }
+        return result;
+    }
+
+    // List bookings that contain any "down payment" indicator for a user
+    // (This looks for keys that might indicate partial/down payments if present in
+    // DB.)
+    public static synchronized List<Booking> listDownPaymentsFromBookings(int userId) {
+        List<Booking> result = new ArrayList<>();
+        com.mongodb.client.MongoCollection<Document> coll = MongoDb.getDatabase().getCollection("bookings");
+        for (Document doc : coll.find(new Document("userId", userId))) {
+            if (doc.containsKey("downPayment") || doc.containsKey("downPaymentBy") || doc.containsKey("partialPaid")) {
+                Integer id = doc.getInteger("bookingId");
+                String purpose = doc.getString("purpose");
+                String uname = null;
+                if (doc.containsKey("bookedBy") && doc.get("bookedBy") instanceof Document bb) {
+                    uname = bb.getString("username");
+                }
+                String statusStr = doc.getString("bookingStatus");
+                BookingStatus bstat = BookingStatus.PENDING;
+                if (statusStr != null) {
+                    try {
+                        bstat = BookingStatus.valueOf(statusStr);
+                    } catch (Exception e) {
+                        // keep default
+                    }
+                }
+                Booking b = new Booking(id != null ? id : 0, null, null, PaymentStatus.DOWNPAID, bstat, purpose, uname);
+                result.add(b);
+            }
+        }
+        return result;
     }
 
 }

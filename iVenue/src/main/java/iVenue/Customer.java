@@ -68,7 +68,7 @@ public class Customer extends User implements Payment {
             System.out.println("1. Create Booking");
             System.out.println("2. Cancel Booking");
             System.out.println("3. View My Bookings");
-            System.out.println("4. Check Booking Status");
+            System.out.println("4. View My Reservations");
             System.out.println("5. Update Profile");
             System.out.println("6. Pay Booking");
             System.out.println("7. Back / Logout");
@@ -77,8 +77,8 @@ public class Customer extends User implements Payment {
             switch (c) {
                 case "1": Booking.createBooking(this); break;
                 case "2": Booking.cancelBooking(this); break;
-                case "3": Booking.viewBookingDetails(this); break;
-                case "4": Booking.checkStatus(this); break;
+                case "3": Booking.viewBookings(this); break;
+                case "4": Booking.viewReservations(this); break;
                 case "5": Customer.updateProfile(sc, this); break;
                 case "6": Booking.payBooking(this); break;
                 case "7": return;
@@ -86,7 +86,7 @@ public class Customer extends User implements Payment {
             }
         }
     }
-    
+
     // registration helper that collects customer details and stores in MongoDB
     public static void registerCustomer(Scanner input) {
         System.out.println("--- Customer Registration ---");
@@ -193,7 +193,7 @@ public class Customer extends User implements Payment {
         // Add venue price
         Integer venueId = doc.getInteger("venueId");
         if (venueId != null) {
-            Venue v = Venue.getVenue(venueId, false); // add the boolean parameter
+            Venue v = Venue.getVenue(venueId.intValue(), false);
             if (v != null) total += v.getPrice();
         }
 
@@ -202,8 +202,9 @@ public class Customer extends User implements Payment {
             @SuppressWarnings("unchecked")
             java.util.List<org.bson.Document> amenities = (java.util.List<org.bson.Document>) doc.get("amenities");
             for (org.bson.Document aDoc : amenities) {
+                int quantity = aDoc.getInteger("quantity", 0);
                 double price = aDoc.getDouble("price") != null ? aDoc.getDouble("price") : 0;
-                total += price; // already includes quantity * price when stored
+                total += price; // already includes quantity*price when stored
             }
         }
 
