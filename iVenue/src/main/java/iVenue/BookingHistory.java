@@ -75,7 +75,7 @@ public class BookingHistory {
         }
 
         synchronized (deletedQueue) {
-            for (Document doc : collection.find(new Document("type", "deleted"))) {
+            for (Document doc : collection.find(new Document("type", "cancelled"))) {
                 String payStr = doc.getString("paymentStatus");
                 PaymentStatus paymentStatus = PaymentStatus.UNPAID;
                 if (payStr != null) {
@@ -132,12 +132,12 @@ public class BookingHistory {
         if (booking == null)
             return;
         Document doc = new Document("bookingId", booking.getBookingId())
-                .append("type", type)
-                .append("paymentStatus", booking.getPaymentStatus())
-                .append("bookingStatus", booking.getBookingStatus())
-                .append("purpose", booking.getPurpose())
-                .append("username", booking.getUsername())
-                .append("timestamp", new java.util.Date());
+            .append("type", type)
+            .append("paymentStatus", booking.getPaymentStatus() == null ? null : booking.getPaymentStatus().name())
+            .append("bookingStatus", booking.getBookingStatus() == null ? null : booking.getBookingStatus().name())
+            .append("purpose", booking.getPurpose())
+            .append("username", booking.getUsername())
+            .append("timestamp", new java.util.Date());
         collection.insertOne(doc);
     }
 
@@ -177,7 +177,7 @@ public class BookingHistory {
         if (booking == null)
             return;
         deletedQueue.offer(booking);
-        writeHistory(booking, "deleted");
+        writeHistory(booking, "cancelled");
     }
 
     public static synchronized Booking peekDeleted() {
@@ -198,7 +198,7 @@ public class BookingHistory {
 
     public static synchronized void clearDeleted() {
         deletedQueue.clear();
-        collection.deleteMany(new Document("type", "deleted"));
+        collection.deleteMany(new Document("type", "cancelled"));
     }
 
     public static synchronized boolean moveDeletedToFinished() {
@@ -206,7 +206,7 @@ public class BookingHistory {
         if (b == null)
             return false;
         finishedQueue.offer(b);
-        collection.deleteOne(new Document("bookingId", b.getBookingId()).append("type", "deleted"));
+        collection.deleteOne(new Document("bookingId", b.getBookingId()).append("type", "cancelled"));
         writeHistory(b, "finished");
         return true;
     }
@@ -247,7 +247,7 @@ public class BookingHistory {
             Booking b = it.next();
             if (b.getBookingId() == bookingId) {
                 it.remove();
-                collection.deleteOne(new Document("bookingId", bookingId).append("type", "deleted"));
+                collection.deleteOne(new Document("bookingId", bookingId).append("type", "cancelled"));
                 return true;
             }
         }
