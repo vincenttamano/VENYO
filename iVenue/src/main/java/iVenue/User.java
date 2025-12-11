@@ -43,7 +43,7 @@ public abstract class User {
         for (User u : UserStore.getAll()) {
             org.bson.Document doc = MongoDb.getDatabase().getCollection("users").find(new org.bson.Document("userId", u.getUserId())).first();
             String username = u.getUsername();
-            String type = (u instanceof AdminUser) ? "admin" : (u instanceof Customer ? "customer" : "user");
+            String type = doc != null && doc.getString("userType") != null ? doc.getString("userType") : (u instanceof Customer ? "customer" : "user");
             String first = doc != null ? doc.getString("firstName") : null;
             String last = doc != null ? doc.getString("lastName") : null;
             String contact = doc != null ? doc.getString("contactNumber") : null;

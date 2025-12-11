@@ -58,7 +58,7 @@ public class UserStore {
         String type = doc.getString("userType");
         int id = doc.getInteger("userId");
         if ("admin".equalsIgnoreCase(type)) {
-            return new AdminUser(username, password, id);
+            return new SimpleUser(username, password, id);
         } else if ("customer".equalsIgnoreCase(type)) {
             return new Customer(
                     username,
@@ -82,7 +82,7 @@ public class UserStore {
             String password = doc.getString("password");
             String type = doc.getString("userType");
             int id = doc.getInteger("userId");
-            if ("admin".equalsIgnoreCase(type)) out.add(new AdminUser(username, password, id));
+            if ("admin".equalsIgnoreCase(type)) out.add(new SimpleUser(username, password, id));
             else if ("customer".equalsIgnoreCase(type)) out.add(new Customer(username, password, id, doc.getString("firstName"), doc.getString("lastName"), doc.getString("contactNumber"), doc.getString("email"), type));
             else out.add(new SimpleUser(username, password, id));
         }

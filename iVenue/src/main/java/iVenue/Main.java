@@ -1,10 +1,10 @@
 package iVenue;
 
 import com.mongodb.client.MongoDatabase;
-
 import java.util.Scanner;
 
 public class Main {
+    
     public static void main(String[] args) {
         Scanner input = new Scanner(System.in);
         int choice;
@@ -28,7 +28,7 @@ public class Main {
                     new Verification("","",0).login();
                     break;
                 case 2:
-                    Customer.registerCustomer(input);
+                    iVenue.Customer.registerCustomer(input);
                     break;
                 case 3:
                     System.out.println("Exiting system.");

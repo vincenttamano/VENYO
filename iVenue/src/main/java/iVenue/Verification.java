@@ -1,6 +1,7 @@
 package iVenue;
 
 import java.util.Scanner;
+import org.bson.Document;
 
 public class Verification extends User {
 
@@ -20,8 +21,11 @@ public class Verification extends User {
             return;
         }
         System.out.println("Login successful. Welcome, " + found.getUsername());
-        if (found instanceof AdminUser) {
-            ((AdminUser) found).adminMenu();
+        // determine type from users collection so we no longer rely on AdminUser runtime class
+        Document doc = MongoDb.getDatabase().getCollection("users").find(new Document("userId", found.getUserId())).first();
+        String type = doc != null ? doc.getString("userType") : null;
+        if ("admin".equalsIgnoreCase(type)) {
+            Admin.launchInteractive();
         } else if (found instanceof Customer) {
             ((Customer) found).userMenu();
         } else {

@@ -18,6 +18,12 @@ public class Admin {
         this.customerAdmin = new CustomerAdmin();
     }
 
+    // Convenience launcher that mirrors previous AdminUser.adminMenu behavior
+    public static void launchInteractive() {
+        Admin admin = new Admin(new Scanner(System.in));
+        admin.adminMenu();
+    }
+
     public void adminMenu() {
         int choice;
         do {
@@ -76,7 +82,7 @@ public class Admin {
                     User.deleteUser(UserId);
                     break;
                 case 3:
-                    System.out.println("Returning to Admin Menu.");
+                    System.out.println("Returning to Admin Menu");
                     break;
                 default:
                     System.out.println("Invalid option, please try again!");

@@ -9,16 +9,16 @@ import java.util.LinkedList;
 import java.util.Scanner;
 
 public class Booking {
+
+    private LinkedList<Amenity> amenities;
+    private static LinkedList<Booking> bookings = new LinkedList<>(); // can be used within Booking class
+    private PaymentStatus paymentStatus;
+    private BookingStatus bookingStatus;   
     private int bookingId;
     private Venue venue;
     private Date date;
-    private PaymentStatus paymentStatus;
-    private BookingStatus bookingStatus;
     private String purpose;
-    private LinkedList<Amenity> amenities;
-    private String username;
-
-    private static LinkedList<Booking> bookings = new LinkedList<>();
+    private String username; 
 
     public Booking(int bookingId, Venue venue, Date date,
             PaymentStatus paymentStatus, BookingStatus bookingStatus,
