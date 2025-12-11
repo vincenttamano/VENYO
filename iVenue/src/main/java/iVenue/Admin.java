@@ -8,6 +8,7 @@ public class Admin {
     private VenueAdmin venueAdmin;
     private AmenityAdmin amenityAdmin;
     private CustomerAdmin customerAdmin;
+    private UserAdmin userAdmin;
     private Scanner input;
 
     public Admin(Scanner input) {
@@ -16,6 +17,7 @@ public class Admin {
         this.venueAdmin = new VenueAdmin();
         this.amenityAdmin = new AmenityAdmin();
         this.customerAdmin = new CustomerAdmin();
+        this.userAdmin = new UserAdmin("admin", "admin", 0); 
     }
 
     // Convenience launcher that mirrors previous AdminUser.adminMenu behavior
@@ -32,8 +34,7 @@ public class Admin {
             System.out.println("2. Manage Venues");
             System.out.println("3. Manage Amenities");
             System.out.println("4. Manage Customers");
-            System.out.println("5. Manage Users");
-            System.out.println("6. Exit");
+            System.out.println("5. Exit");
             System.out.print("Enter choice: ");
             choice = Integer.parseInt(input.nextLine());
 
@@ -51,43 +52,12 @@ public class Admin {
                     manageCustomers();
                     break;
                 case 5:
-                    manageUsers();
-                    break;
-                case 6:
                     System.out.println("Exiting Admin Menu.");
                     break;
                 default:
                     System.out.println("Invalid option, please try again!");
             }
-        } while (choice != 6);
-    }
-
-    private void manageUsers() {
-        int choice;
-        do {
-            System.out.println("\n--- USER MANAGEMENT ---");
-            System.out.println("1. Display All Users");
-            System.out.println("2. Delete User by ID");
-            System.out.println("3. Back");
-            System.out.print("Enter choice: ");
-            choice = Integer.parseInt(input.nextLine());
-
-            switch (choice) {
-                case 1:
-                    User.displayAllUsers();
-                    break;
-                case 2:
-                    System.out.print("Enter User ID to delete: ");
-                    int UserId = Integer.parseInt(input.nextLine());
-                    User.deleteUser(UserId);
-                    break;
-                case 3:
-                    System.out.println("Returning to Admin Menu");
-                    break;
-                default:
-                    System.out.println("Invalid option, please try again!");
-            }
-        } while (choice != 3);
+        } while (choice != 5);
     }
 
     private void manageCustomers() {
@@ -103,15 +73,13 @@ public class Admin {
 
             switch (choice) {
                 case 1:
-                    System.out.println("---- ALL CUSTOMERS ----");
-                    User.displayAllUsers();
+                    userAdmin.displayAll();
                     break;
                 case 2:
                     customerAdmin.update(input);
                     break;
                 case 3:
-                    int UserId = Integer.parseInt(input.nextLine());
-                    User.deleteUser(UserId);
+                    userAdmin.delete(input);
                     break;
                 case 4:
                     System.out.println("Returning to Admin Menu.");

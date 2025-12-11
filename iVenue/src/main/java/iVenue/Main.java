@@ -25,7 +25,7 @@ public class Main {
 
             switch (choice) {
                 case 1:
-                    new Verification("","",0).login();
+                    new VerifiedUser("","",0).login();
                     break;
                 case 2:
                     iVenue.Customer.registerCustomer(input);

@@ -3,9 +3,9 @@ package iVenue;
 import java.util.Scanner;
 import org.bson.Document;
 
-public class Verification extends User {
+public class VerifiedUser extends User {
 
-    public Verification(String username, String password, int userID) {
+    public VerifiedUser(String username, String password, int userID) {
         super(username, password, userID);
     }
 
