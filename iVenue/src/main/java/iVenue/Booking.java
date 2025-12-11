@@ -484,18 +484,11 @@ public class Booking {
                                 .append("total", total)));
 
         // Add to booking history
-        Booking finishedSnapshot = new Booking(
-                id, null, null, finalStatus,
-                BookingStatus.BOOKED,
-                doc.getString("purpose"),
-                customer.getUsername());
-        BookingHistory.addFinished(finishedSnapshot);
-
         System.out.println("\nPayment successful!");
         System.out.println("You paid: ₱" + amountPaid);
         System.out.println("Remaining balance: ₱" + (total - amountPaid));
         System.out.println("Payment Status: " + finalStatus);
-        System.out.println("Booking confirmed & added to history.");
+        System.out.println("Booking confirmed.");
     }
 
 }

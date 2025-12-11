@@ -287,8 +287,8 @@ public class BookingAdmin implements AdminManagement<Booking> {
                                 System.out.println("Booking ID: " + full.getInteger("bookingId"));
                                 System.out.println("Venue: " + full.getString("venueName"));
                                 System.out.println("Purpose: " + full.getString("purpose"));
-                                System.out.println("Status: " + full.getString("bookingStatus"));
-                                System.out.println("Payment Status: " + full.getString("paymentStatus"));
+                                System.out.println("Status: " + (b.getBookingStatus() == null ? full.getString("bookingStatus") : b.getBookingStatus()));
+                                System.out.println("Payment Status: " + (b.getPaymentStatus() == null ? full.getString("paymentStatus") : b.getPaymentStatus()));
                                 System.out.println("User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
                                 Object amenities = full.get("amenities");
                                 System.out.print("Amenities: ");
@@ -358,8 +358,8 @@ public class BookingAdmin implements AdminManagement<Booking> {
                                 System.out.println("Booking ID: " + full.getInteger("bookingId"));
                                 System.out.println("Venue: " + full.getString("venueName"));
                                 System.out.println("Purpose: " + full.getString("purpose"));
-                                System.out.println("Status: " + full.getString("bookingStatus"));
-                                System.out.println("Payment Status: " + full.getString("paymentStatus"));
+                                System.out.println("Status: " + (b.getBookingStatus() == null ? full.getString("bookingStatus") : b.getBookingStatus()));
+                                System.out.println("Payment Status: " + (b.getPaymentStatus() == null ? full.getString("paymentStatus") : b.getPaymentStatus()));
                                 System.out.println("User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
                                 Object amenities = full.get("amenities");
                                 System.out.print("Amenities: ");
