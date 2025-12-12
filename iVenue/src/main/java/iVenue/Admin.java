@@ -129,7 +129,7 @@ public class Admin {
             System.out.println("1. Create Booking");
             System.out.println("2. Update Booking");
             System.out.println("3. Delete Booking");
-            System.out.println("4. Display All Bookings");
+            System.out.println("4. View Bookings");
             System.out.println("5. View Booking History");
             System.out.println("6. Back");
             System.out.print("Enter choice: ");
