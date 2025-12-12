@@ -8,7 +8,6 @@ public class Admin {
     private VenueAdmin venueAdmin;
     private AmenityAdmin amenityAdmin;
     private CustomerAdmin customerAdmin;
-    private UserAdmin userAdmin;
     private Scanner input;
 
     public Admin(Scanner input) {
@@ -16,8 +15,7 @@ public class Admin {
         this.bookingAdmin = new BookingAdmin();
         this.venueAdmin = new VenueAdmin();
         this.amenityAdmin = new AmenityAdmin();
-        this.customerAdmin = new CustomerAdmin();
-        this.userAdmin = new UserAdmin("admin", "admin", 0); 
+        this.customerAdmin = new CustomerAdmin("", "", 0);
     }
 
     // Convenience launcher that mirrors previous AdminUser.adminMenu behavior
@@ -73,13 +71,13 @@ public class Admin {
 
             switch (choice) {
                 case 1:
-                    userAdmin.displayAll();
+                    customerAdmin.displayAll();
                     break;
                 case 2:
                     customerAdmin.update(input);
                     break;
                 case 3:
-                    userAdmin.delete(input);
+                    customerAdmin.delete(input);
                     break;
                 case 4:
                     System.out.println("Returning to Admin Menu.");
