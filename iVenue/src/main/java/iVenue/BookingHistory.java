@@ -9,17 +9,23 @@ import org.bson.Document;
 
 public class BookingHistory {
 
-    private static final Queue<Booking> finishedQueue = new LinkedList<>();
-    private static final Queue<Booking> deletedQueue = new LinkedList<>();
-    // Maximum number of history entries to keep for each queue (FIFO)
-    private static final int MAX_HISTORY = 30;
-    private static final MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("booking_history");
+    // Singleton instance (backwards-compatible facade)
+    private static final BookingHistory INSTANCE = new BookingHistory();
 
-    static {
+    private final Queue<Booking> finishedQueue = new LinkedList<>();
+    private final Queue<Booking> deletedQueue = new LinkedList<>();
+    // Maximum number of history entries to keep for each queue (FIFO)
+    private int maxHistory = 30;
+    private final MongoCollection<Document> collection;
+
+    // Public constructor - initializes from DB
+    public BookingHistory() {
+        this.collection = MongoDb.getDatabase().getCollection("booking_history");
         loadHistory();
     }
 
-    private static void loadHistory() {
+    // Load existing history from DB into queues
+    private void loadHistory() {
         synchronized (finishedQueue) {
             for (Document doc : collection.find(new Document("type", "finished"))) {
                 // Parse paymentStatus from DB in a case-insensitive manner
@@ -130,25 +136,10 @@ public class BookingHistory {
         }
 
         // Enforce max size after loading from DB to ensure invariant (trim oldest FIFO)
-        synchronized (finishedQueue) {
-            while (finishedQueue.size() > MAX_HISTORY) {
-                Booking removed = finishedQueue.poll();
-                if (removed != null) {
-                    collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "finished"));
-                }
-            }
-        }
-        synchronized (deletedQueue) {
-            while (deletedQueue.size() > MAX_HISTORY) {
-                Booking removed = deletedQueue.poll();
-                if (removed != null) {
-                    collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "cancelled"));
-                }
-            }
-        }
+        enforceMaxSize();
     }
 
-    private static void writeHistory(Booking booking, String type) {
+    private void writeHistory(Booking booking, String type) {
         if (booking == null)
             return;
         Document doc = new Document("bookingId", booking.getBookingId())
@@ -163,13 +154,14 @@ public class BookingHistory {
 
     // --- Finished bookings ---
 
-    public static synchronized void addFinished(Booking booking) {
+    // Instance API
+    public synchronized void addFinishedInternal(Booking booking) {
         if (booking == null)
             return;
-        // Add new finished booking and persist, then trim oldest entries if exceeding limit
         finishedQueue.offer(booking);
         writeHistory(booking, "finished");
-        while (finishedQueue.size() > MAX_HISTORY) {
+        // enforce FIFO max size
+        while (finishedQueue.size() > maxHistory) {
             Booking removed = finishedQueue.poll();
             if (removed != null) {
                 collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "finished"));
@@ -177,20 +169,20 @@ public class BookingHistory {
         }
     }
 
-    public static synchronized List<Booking> listFinished() {
+    public synchronized List<Booking> listFinishedInternal() {
         return new ArrayList<>(finishedQueue);
     }
 
-    public static synchronized int finishedCount() {
+    public synchronized int finishedCountInternal() {
         return finishedQueue.size();
     }
 
-    public static synchronized void clearFinished() {
+    public synchronized void clearFinishedInternal() {
         finishedQueue.clear();
         collection.deleteMany(new Document("type", "finished"));
     }
 
-    public static synchronized boolean removeFinishedById(int bookingId) {
+    public synchronized boolean removeFinishedByIdInternal(int bookingId) {
         java.util.Iterator<Booking> it = finishedQueue.iterator();
         while (it.hasNext()) {
             Booking b = it.next();
@@ -205,13 +197,12 @@ public class BookingHistory {
 
     // --- Deleted bookings ---
 
-    public static synchronized void addDeleted(Booking booking) {
+    public synchronized void addDeletedInternal(Booking booking) {
         if (booking == null)
             return;
-        // Add new deleted booking and persist, then trim oldest entries if exceeding limit
         deletedQueue.offer(booking);
         writeHistory(booking, "cancelled");
-        while (deletedQueue.size() > MAX_HISTORY) {
+        while (deletedQueue.size() > maxHistory) {
             Booking removed = deletedQueue.poll();
             if (removed != null) {
                 collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "cancelled"));
@@ -219,20 +210,20 @@ public class BookingHistory {
         }
     }
 
-    public static synchronized List<Booking> listDeleted() {
+    public synchronized List<Booking> listDeletedInternal() {
         return new ArrayList<>(deletedQueue);
     }
 
-    public static synchronized int deletedCount() {
+    public synchronized int deletedCountInternal() {
         return deletedQueue.size();
     }
 
-    public static synchronized void clearDeleted() {
+    public synchronized void clearDeletedInternal() {
         deletedQueue.clear();
         collection.deleteMany(new Document("type", "cancelled"));
     }
 
-    public static synchronized boolean removeDeletedById(int bookingId) {
+    public synchronized boolean removeDeletedByIdInternal(int bookingId) {
         java.util.Iterator<Booking> it = deletedQueue.iterator();
         while (it.hasNext()) {
             Booking b = it.next();
@@ -247,7 +238,7 @@ public class BookingHistory {
 
     // --- Additional helpers ---
     // List finished (paid) bookings by username
-    public static synchronized List<Booking> listFinishedByUsername(String username) {
+    public synchronized List<Booking> listFinishedByUsernameInternal(String username) {
         List<Booking> result = new ArrayList<>();
         for (Booking b : finishedQueue) {
             if (b.getUsername() != null && b.getUsername().equals(username))
@@ -313,5 +304,51 @@ public class BookingHistory {
         }
         return result;
     }
+
+    // Enforce max size on both queues (trim oldest FIFO and delete corresponding DB docs)
+    private synchronized void enforceMaxSize() {
+        synchronized (finishedQueue) {
+            while (finishedQueue.size() > maxHistory) {
+                Booking removed = finishedQueue.poll();
+                if (removed != null) {
+                    collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "finished"));
+                }
+            }
+        }
+        synchronized (deletedQueue) {
+            while (deletedQueue.size() > maxHistory) {
+                Booking removed = deletedQueue.poll();
+                if (removed != null) {
+                    collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "cancelled"));
+                }
+            }
+        }
+    }
+
+    // Public getters/setters for encapsulated properties
+    public int getMaxHistory() {
+        return maxHistory;
+    }
+
+    public synchronized void setMaxHistory(int maxHistory) {
+        if (maxHistory < 1) return;
+        this.maxHistory = maxHistory;
+        enforceMaxSize();
+    }
+
+    // Backwards-compatible static facade methods that delegate to the singleton instance
+    public static void addFinished(Booking booking) { INSTANCE.addFinishedInternal(booking); }
+    public static List<Booking> listFinished() { return INSTANCE.listFinishedInternal(); }
+    public static int finishedCount() { return INSTANCE.finishedCountInternal(); }
+    public static void clearFinished() { INSTANCE.clearFinishedInternal(); }
+    public static boolean removeFinishedById(int bookingId) { return INSTANCE.removeFinishedByIdInternal(bookingId); }
+
+    public static void addDeleted(Booking booking) { INSTANCE.addDeletedInternal(booking); }
+    public static List<Booking> listDeleted() { return INSTANCE.listDeletedInternal(); }
+    public static int deletedCount() { return INSTANCE.deletedCountInternal(); }
+    public static void clearDeleted() { INSTANCE.clearDeletedInternal(); }
+    public static boolean removeDeletedById(int bookingId) { return INSTANCE.removeDeletedByIdInternal(bookingId); }
+
+    public static List<Booking> listFinishedByUsername(String username) { return INSTANCE.listFinishedByUsernameInternal(username); }
 
 }
