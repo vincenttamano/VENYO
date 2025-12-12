@@ -4,8 +4,12 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+
 public class Venue {
-    private int venueId; // remove static counter
+    private int venueId;
     private String name;
     private String description;
     private int capacity;
@@ -14,7 +18,8 @@ public class Venue {
     private double price;
     private boolean isFree;
 
-    public Venue(int venueId, String name, String description, int capacity,boolean availability, String location, double price) {
+    public Venue(int venueId, String name, String description, int capacity, boolean availability, String location,
+            double price) {
         this.venueId = venueId;
         this.name = name;
         this.description = description;
@@ -81,21 +86,20 @@ public class Venue {
         this.price = Math.max(price, 0);
         this.isFree = (this.price == 0);
     }
+
+    public boolean isFree() {
+        return isFree;
+    }
+
     public void setFree(boolean free) {
         isFree = free;
     }
-
-    public boolean isFree() {
-        return this.isFree;
-    }
-
 
     public String getPriceLabel() {
         return (price == 0) ? "FREE" : "₱" + price;
     }
 
-
-    // -------- DISPLAY METHODS --------
+    // ---------------- DISPLAY METHODS ----------------
 
     public static void displayAvailableVenues() {
         MongoDatabase database = MongoDb.getDatabase();
@@ -103,7 +107,6 @@ public class Venue {
 
         System.out.println("Available Venues:");
         for (Document doc : collection.find(new Document("availability", true))) {
-
             double price = doc.getDouble("price");
             String priceLabel = (price == 0) ? "FREE" : "₱" + price;
 
@@ -123,10 +126,9 @@ public class Venue {
 
         System.out.println("ALL VENUES");
 
-        // AVAILABLE
+        // Available
         System.out.println("\nAvailable Venues:");
         for (Document doc : collection.find(new Document("availability", true))) {
-
             double price = doc.getDouble("price");
             String priceLabel = (price == 0) ? "FREE" : "₱" + price;
 
@@ -140,10 +142,9 @@ public class Venue {
             System.out.println("---------------------------");
         }
 
-        // BOOKED
+        // Booked
         System.out.println("\nBooked Venues:");
         for (Document doc : collection.find(new Document("availability", false))) {
-
             double price = doc.getDouble("price");
             String priceLabel = (price == 0) ? "FREE" : "₱" + price;
 
@@ -158,16 +159,14 @@ public class Venue {
         }
     }
 
-    // -------- Get Venue by ID --------
-
+    // ---------------- GET VENUE BY ID ----------------
     public static Venue getVenue(int venueId, boolean onlyIfAvailable) {
         MongoDatabase database = MongoDb.getDatabase();
         MongoCollection<Document> collection = database.getCollection("venues");
 
         Document query = new Document("venueId", venueId);
-        if (onlyIfAvailable) {
+        if (onlyIfAvailable)
             query.append("availability", true);
-        }
 
         Document doc = collection.find(query).first();
 
@@ -179,11 +178,23 @@ public class Venue {
                     doc.getInteger("capacity"),
                     doc.getBoolean("availability"),
                     doc.getString("location"),
-                    doc.getDouble("price")
-            );
+                    doc.getDouble("price"));
         }
-
-        return null; // venue not found or not available
+        return null; // venue not found or unavailable
     }
 
+    // ---------------- GET BOOKED DATES FOR A VENUE ----------------
+    public static List<String> getBookedDates(int venueId) {
+        MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("bookings");
+        List<String> bookedDates = new ArrayList<>();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+        for (Document doc : collection.find(new Document("venueId", venueId))) {
+            String dateStr = doc.getString("date");
+            if (dateStr != null && !dateStr.isEmpty()) {
+                bookedDates.add(dateStr);
+            }
+        }
+        return bookedDates;
+    }
 }

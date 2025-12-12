@@ -132,12 +132,12 @@ public class BookingHistory {
         if (booking == null)
             return;
         Document doc = new Document("bookingId", booking.getBookingId())
-            .append("type", type)
-            .append("paymentStatus", booking.getPaymentStatus() == null ? null : booking.getPaymentStatus().name())
-            .append("bookingStatus", booking.getBookingStatus() == null ? null : booking.getBookingStatus().name())
-            .append("purpose", booking.getPurpose())
-            .append("username", booking.getUsername())
-            .append("timestamp", new java.util.Date());
+                .append("type", type)
+                .append("paymentStatus", booking.getPaymentStatus() == null ? null : booking.getPaymentStatus().name())
+                .append("bookingStatus", booking.getBookingStatus() == null ? null : booking.getBookingStatus().name())
+                .append("purpose", booking.getPurpose())
+                .append("username", booking.getUsername())
+                .append("timestamp", new java.util.Date());
         collection.insertOne(doc);
     }
 
@@ -148,14 +148,6 @@ public class BookingHistory {
             return;
         finishedQueue.offer(booking);
         writeHistory(booking, "finished");
-    }
-
-    public static synchronized Booking peekFinished() {
-        return finishedQueue.peek();
-    }
-
-    public static synchronized Booking pollFinished() {
-        return finishedQueue.poll();
     }
 
     public static synchronized List<Booking> listFinished() {
@@ -171,6 +163,19 @@ public class BookingHistory {
         collection.deleteMany(new Document("type", "finished"));
     }
 
+    public static synchronized boolean removeFinishedById(int bookingId) {
+        java.util.Iterator<Booking> it = finishedQueue.iterator();
+        while (it.hasNext()) {
+            Booking b = it.next();
+            if (b.getBookingId() == bookingId) {
+                it.remove();
+                collection.deleteOne(new Document("bookingId", bookingId).append("type", "finished"));
+                return true;
+            }
+        }
+        return false;
+    }
+
     // --- Deleted bookings ---
 
     public static synchronized void addDeleted(Booking booking) {
@@ -178,14 +183,6 @@ public class BookingHistory {
             return;
         deletedQueue.offer(booking);
         writeHistory(booking, "cancelled");
-    }
-
-    public static synchronized Booking peekDeleted() {
-        return deletedQueue.peek();
-    }
-
-    public static synchronized Booking pollDeleted() {
-        return deletedQueue.poll();
     }
 
     public static synchronized List<Booking> listDeleted() {
@@ -199,46 +196,6 @@ public class BookingHistory {
     public static synchronized void clearDeleted() {
         deletedQueue.clear();
         collection.deleteMany(new Document("type", "cancelled"));
-    }
-
-    public static synchronized boolean moveDeletedToFinished() {
-        Booking b = deletedQueue.poll();
-        if (b == null)
-            return false;
-        finishedQueue.offer(b);
-        collection.deleteOne(new Document("bookingId", b.getBookingId()).append("type", "cancelled"));
-        writeHistory(b, "finished");
-        return true;
-    }
-
-    // Convenience lookup by booking id
-    public static synchronized Booking findFinishedById(int bookingId) {
-        for (Booking b : finishedQueue) {
-            if (b.getBookingId() == bookingId)
-                return b;
-        }
-        return null;
-    }
-
-    public static synchronized Booking findDeletedById(int bookingId) {
-        for (Booking b : deletedQueue) {
-            if (b.getBookingId() == bookingId)
-                return b;
-        }
-        return null;
-    }
-
-    public static synchronized boolean removeFinishedById(int bookingId) {
-        java.util.Iterator<Booking> it = finishedQueue.iterator();
-        while (it.hasNext()) {
-            Booking b = it.next();
-            if (b.getBookingId() == bookingId) {
-                it.remove();
-                collection.deleteOne(new Document("bookingId", bookingId).append("type", "finished"));
-                return true;
-            }
-        }
-        return false;
     }
 
     public static synchronized boolean removeDeletedById(int bookingId) {
@@ -265,7 +222,7 @@ public class BookingHistory {
         return result;
     }
 
-    // List unpaid bookings (present in `bookings` collection with
+    // List unpaid bookings (present in bookings collection with
     // PaymentStatus.Pending) for a userId
     public static synchronized List<Booking> listUnpaidFromBookings(int userId) {
         List<Booking> result = new ArrayList<>();

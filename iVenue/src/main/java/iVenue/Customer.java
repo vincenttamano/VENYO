@@ -4,7 +4,7 @@ import java.util.Scanner;
  
 
 public class Customer extends User implements Payment {
-     private String firstName;
+    private String firstName;
     private String lastName;
     private String contactNumber;
     private String email;
