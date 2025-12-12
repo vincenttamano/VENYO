@@ -11,6 +11,8 @@ public class BookingHistory {
 
     private static final Queue<Booking> finishedQueue = new LinkedList<>();
     private static final Queue<Booking> deletedQueue = new LinkedList<>();
+    // Maximum number of history entries to keep for each queue (FIFO)
+    private static final int MAX_HISTORY = 30;
     private static final MongoCollection<Document> collection = MongoDb.getDatabase().getCollection("booking_history");
 
     static {
@@ -126,6 +128,24 @@ public class BookingHistory {
                 deletedQueue.offer(b);
             }
         }
+
+        // Enforce max size after loading from DB to ensure invariant (trim oldest FIFO)
+        synchronized (finishedQueue) {
+            while (finishedQueue.size() > MAX_HISTORY) {
+                Booking removed = finishedQueue.poll();
+                if (removed != null) {
+                    collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "finished"));
+                }
+            }
+        }
+        synchronized (deletedQueue) {
+            while (deletedQueue.size() > MAX_HISTORY) {
+                Booking removed = deletedQueue.poll();
+                if (removed != null) {
+                    collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "cancelled"));
+                }
+            }
+        }
     }
 
     private static void writeHistory(Booking booking, String type) {
@@ -146,8 +166,15 @@ public class BookingHistory {
     public static synchronized void addFinished(Booking booking) {
         if (booking == null)
             return;
+        // Add new finished booking and persist, then trim oldest entries if exceeding limit
         finishedQueue.offer(booking);
         writeHistory(booking, "finished");
+        while (finishedQueue.size() > MAX_HISTORY) {
+            Booking removed = finishedQueue.poll();
+            if (removed != null) {
+                collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "finished"));
+            }
+        }
     }
 
     public static synchronized List<Booking> listFinished() {
@@ -181,8 +208,15 @@ public class BookingHistory {
     public static synchronized void addDeleted(Booking booking) {
         if (booking == null)
             return;
+        // Add new deleted booking and persist, then trim oldest entries if exceeding limit
         deletedQueue.offer(booking);
         writeHistory(booking, "cancelled");
+        while (deletedQueue.size() > MAX_HISTORY) {
+            Booking removed = deletedQueue.poll();
+            if (removed != null) {
+                collection.deleteOne(new Document("bookingId", removed.getBookingId()).append("type", "cancelled"));
+            }
+        }
     }
 
     public static synchronized List<Booking> listDeleted() {

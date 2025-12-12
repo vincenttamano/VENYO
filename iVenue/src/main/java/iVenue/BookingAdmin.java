@@ -5,6 +5,7 @@ import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
 import java.util.Date;
+import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.Comparator;
@@ -12,6 +13,8 @@ import java.util.Comparator;
 public class BookingAdmin implements AdminManagement<Booking> {
 
     private final MongoCollection<Document> collection;
+    // Shared input scanner for admin interactive prompts
+    private static final Scanner INPUT = new Scanner(System.in);
 
     public BookingAdmin() {
         MongoDatabase database = MongoDb.getDatabase();
@@ -163,24 +166,15 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
         // If marking as finished or cancelled
         if (newStatus == BookingStatus.FINISHED || newStatus == BookingStatus.CANCELLED) {
-            // Update venue availability
-            if (doc.containsKey("venueId")) {
-                int venueId = doc.getInteger("venueId");
-                MongoCollection<Document> venueCollection = MongoDb.getDatabase().getCollection("venues");
-                // Ensure we set availability (used elsewhere) to true so the venue becomes
-                // available again
-                venueCollection.updateOne(
-                        new Document("venueId", venueId),
-                        new Document("$set", new Document("availability", true)));
-                System.out.println("Venue marked as available.");
-            }
+                // Update venue availability
+                if (doc.containsKey("venueId")) {
+                    int venueId = doc.getInteger("venueId");
+                    setVenueAvailableById(venueId);
+                    System.out.println("Venue marked as available.");
+                }
 
-            // Extract username
-            String username = "N/A";
-            if (doc.containsKey("bookedBy")) {
-                Document bookedBy = (Document) doc.get("bookedBy");
-                username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
-            }
+                // Extract username
+                String username = extractUsername(doc);
 
             // Create snapshot
             Booking snapshot = new Booking(
@@ -220,16 +214,10 @@ public class BookingAdmin implements AdminManagement<Booking> {
         }
 
         String venueName = doc.getString("venueName");
-        MongoDb.getDatabase().getCollection("venues")
-                .updateOne(new Document("name", venueName),
-                        new Document("$set", new Document("availability", true)));
+        setVenueAvailableByName(venueName);
 
         // Extract username from bookedBy
-        String username = "N/A";
-        if (doc.containsKey("bookedBy")) {
-            Document bookedBy = (Document) doc.get("bookedBy");
-            username = bookedBy.getString("username") == null ? "N/A" : bookedBy.getString("username");
-        }
+        String username = extractUsername(doc);
 
         // Add a snapshot of the deleted booking to history before removing from DB
         Booking deletedSnapshot = new Booking(id, null, null, PaymentStatus.valueOf(doc.getString("paymentStatus")),
@@ -243,6 +231,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
     @Override
     public void displayAll() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         // Load all bookings into a linked list and show unsorted first
         LinkedList<Booking> list = loadAllBookings();
 
@@ -251,44 +240,27 @@ public class BookingAdmin implements AdminManagement<Booking> {
             System.out.println("No bookings found.");
         } else {
             for (Booking b : list) {
+                String dateStr = (b.getDate() == null) ? "N/A" : sdf.format(b.getDate());
                 System.out.println("ID:" + b.getBookingId() + " | Venue:"
                         + (b.getVenue() == null ? "N/A" : b.getVenue().getName()) +
+                        " | Date:" + dateStr +
                         " | User:" + (b.getUsername() == null ? "N/A" : b.getUsername()) +
                         " | Status:" + (b.getBookingStatus() == null ? "N/A" : b.getBookingStatus()));
             }
         }
 
-        // Sorting Option (Selection Sort)
-        Scanner sc = new Scanner(System.in);
-        System.out.println("\nSort bookings by status? (Selection Sort)");
-        System.out.println("1) Yes");
-        System.out.println("2) No");
-        System.out.print("Enter choice: ");
-
-        int sortChoice;
-        try {
-            sortChoice = Integer.parseInt(sc.nextLine());
-        } catch (Exception e) {
-            sortChoice = 2;
-        }
-
-        if (sortChoice == 1) {
-            selectionSortByStatus(list);
-            System.out.println("\n----BOOKINGS SORTED ALPHABETICALLY (SELECTION SORT)----");
-            for (Booking b : list) {
-                System.out.println("ID:" + b.getBookingId() + " | Status:" + b.getBookingStatus());
-            }
-        }
+        // (Selection sort removed) Bookings remain unsorted by default.
 
         // Filter menu
-        System.out.println(
-                "\nFilter bookings by status?\n1) BOOKED\n2) PENDING\n3) CANCELLED\n4) FINISHED\n5) No / Back");
+        Scanner sc = INPUT;
+            System.out.println(
+                    "\nFilter bookings by status?\n1) BOOKED\n2) PENDING\n3) No / Back");
         System.out.print("Enter choice: ");
         int filterChoice;
         try {
             filterChoice = Integer.parseInt(sc.nextLine());
         } catch (Exception e) {
-            filterChoice = 5;
+                filterChoice = 3;
         }
 
         BookingStatus filterStatus = null;
@@ -298,12 +270,6 @@ public class BookingAdmin implements AdminManagement<Booking> {
                 break;
             case 2:
                 filterStatus = BookingStatus.PENDING;
-                break;
-            case 3:
-                filterStatus = BookingStatus.CANCELLED;
-                break;
-            case 4:
-                filterStatus = BookingStatus.FINISHED;
                 break;
             default:
                 filterStatus = null;
@@ -322,6 +288,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
             } else {
                 for (Booking b : filtered) {
                     System.out.println("Booking ID: " + b.getBookingId());
+                    System.out.println("Date: " + (b.getDate() == null ? "N/A" : sdf.format(b.getDate())));
                     System.out.println("Purpose: " + (b.getPurpose() == null ? "N/A" : b.getPurpose()));
                     System.out.println("User: " + (b.getUsername() == null ? "N/A" : b.getUsername()));
                     System.out.println("Status: " + b.getBookingStatus());
@@ -332,26 +299,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
         }
     }
 
-    // --- SELECTION SORT FOR ACTIVE BOOKINGS ---
-    private static void selectionSortByStatus(LinkedList<Booking> list) {
-        int n = list.size();
-
-        for (int i = 0; i < n - 1; i++) {
-            int minIndex = i;
-
-            for (int j = i + 1; j < n; j++) {
-                String s1 = list.get(j).getBookingStatus().name();
-                String s2 = list.get(minIndex).getBookingStatus().name();
-                if (s1.compareTo(s2) < 0) {
-                    minIndex = j;
-                }
-            }
-
-            Booking temp = list.get(minIndex);
-            list.set(minIndex, list.get(i));
-            list.set(i, temp);
-        }
-    }
+    // Selection sort removed — bubble sort retained for history sorting.
 
     // Load bookings from DB into a linked list of lightweight Booking objects
     private LinkedList<Booking> loadAllBookings() {
@@ -360,6 +308,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
             int id = doc.containsKey("bookingId") ? doc.getInteger("bookingId") : 0;
             String pay = doc.containsKey("paymentStatus") ? doc.getString("paymentStatus") : null;
             String stat = doc.containsKey("bookingStatus") ? doc.getString("bookingStatus") : null;
+            Date date = doc.containsKey("date") ? doc.getDate("date") : null;
             String purpose = doc.getString("purpose");
             String uname = null;
             if (doc.containsKey("bookedBy") && doc.get("bookedBy") instanceof Document bb) {
@@ -379,7 +328,7 @@ public class BookingAdmin implements AdminManagement<Booking> {
             } catch (Exception ignored) {
             }
 
-            Booking b = new Booking(id, null, null, pstat, bstat, purpose, uname);
+            Booking b = new Booking(id, null, date, pstat, bstat, purpose, uname);
             list.add(b);
         }
         return list;
@@ -421,11 +370,39 @@ public class BookingAdmin implements AdminManagement<Booking> {
         };
     }
 
+    // Helper: extract username safely from a booking document
+    private static String extractUsername(Document doc) {
+        if (doc == null)
+            return "N/A";
+        if (doc.containsKey("bookedBy") && doc.get("bookedBy") instanceof Document bookedBy) {
+            String uname = bookedBy.getString("username");
+            return uname == null ? "N/A" : uname;
+        }
+        return "N/A";
+    }
+
+    // Helper: mark venue available by venueId
+    private static void setVenueAvailableById(int venueId) {
+        MongoCollection<Document> venueCollection = MongoDb.getDatabase().getCollection("venues");
+        venueCollection.updateOne(new Document("venueId", venueId),
+                new Document("$set", new Document("availability", true)));
+    }
+
+    // Helper: mark venue available by name
+    private static void setVenueAvailableByName(String name) {
+        if (name == null)
+            return;
+        MongoCollection<Document> venueCollection = MongoDb.getDatabase().getCollection("venues");
+        venueCollection.updateOne(new Document("name", name),
+                new Document("$set", new Document("availability", true)));
+    }
+
     /**
      * Display booking history: all finished and cancelled bookings together.
      */
     public void displayHistory(Scanner input) {
         System.out.println("\n--- BOOKING HISTORY ---");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         LinkedList<Booking> allHistory = new LinkedList<>();
         allHistory.addAll(BookingHistory.listFinished());
         allHistory.addAll(BookingHistory.listDeleted());
@@ -442,6 +419,8 @@ public class BookingAdmin implements AdminManagement<Booking> {
                     .find(new Document("bookingId", b.getBookingId())).first();
             System.out.println("[" + index + "]");
             if (full != null) {
+                Date d = full.getDate("date");
+                if (d != null) System.out.println("Date: " + sdf.format(d));
                 System.out.println("Booking ID: " + full.getInteger("bookingId"));
                 System.out.println("Venue: " + full.getString("venueName"));
                 System.out.println("Purpose: " + full.getString("purpose"));
@@ -490,10 +469,15 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
             System.out.println(
                     "\n----SORTED HISTORY (" + (sortChoice == 1 ? "FINISHED FIRST" : "CANCELLED FIRST") + ")----");
-            for (Booking b : allHistory) {
-                System.out.println("ID: " + b.getBookingId() + " | Status: " + b.getBookingStatus() + " | User: "
-                        + b.getUsername());
-            }
+                for (Booking b : allHistory) {
+                Document full = MongoDb.getDatabase().getCollection("bookings")
+                    .find(new Document("bookingId", b.getBookingId())).first();
+                Date d = null;
+                if (full != null) d = full.getDate("date");
+                String dateStr = (d == null) ? (b.getDate() == null ? "N/A" : new SimpleDateFormat("yyyy-MM-dd").format(b.getDate())) : new SimpleDateFormat("yyyy-MM-dd").format(d);
+                System.out.println("ID: " + b.getBookingId() + " | Date: " + dateStr + " | Status: " + b.getBookingStatus() + " | User: "
+                    + b.getUsername());
+                }
         }
 
         LinkedList<Booking> finalList = new LinkedList<>(allHistory);
@@ -521,8 +505,13 @@ public class BookingAdmin implements AdminManagement<Booking> {
 
         System.out.println("\n----BOOKING HISTORY DISPLAY----");
         for (Booking b : filteredList) {
+            Document full = MongoDb.getDatabase().getCollection("bookings")
+                .find(new Document("bookingId", b.getBookingId())).first();
+            Date d = null;
+            if (full != null) d = full.getDate("date");
+            String dateStr = (d == null) ? (b.getDate() == null ? "N/A" : new SimpleDateFormat("yyyy-MM-dd").format(b.getDate())) : new SimpleDateFormat("yyyy-MM-dd").format(d);
             System.out.println(
-                    "ID: " + b.getBookingId() + " | Status: " + b.getBookingStatus() + " | User: " + b.getUsername());
+                "ID: " + b.getBookingId() + " | Date: " + dateStr + " | Status: " + b.getBookingStatus() + " | User: " + b.getUsername());
         }
 
         // Delete options
